@@ -116,9 +116,10 @@ public class Planificador {
     }
     
     // Retorna los procesos en la cola de listos como un array de Strings
-    public String[] getListaProcesos() {
-        return colaListos.obtenerListaProcesos();
-}   
+    // ✅ Método corregido en Planificador para devolver una lista de Proceso
+public List<Proceso> getListaProcesos() {
+    return colaListos.obtenerTodos(); // ✅ Asegurar que devuelve objetos `Proceso`
+}
     
     // Retorna la cantidad de CPUs disponibles en el planificador
     public int getNumCPUs() {

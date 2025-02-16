@@ -1,39 +1,17 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Interfaces;
 
-/**
- *
- * @author adrianlovera
- */
 import Modelo.Planificador;
 import Modelo.Proceso;
 import Modelo.Planificador.Algoritmo;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 /**
  * Interfaz gráfica del simulador de planificación.
- * Muestra la cola de listos, procesos en ejecución y permite cambiar la planificación.
+ * Se ha mejorado para reflejar correctamente los procesos en ejecución y su estado.
  * 
- * @author arianneperret-gentil
- */
-import Modelo.Planificador;
-import Modelo.Planificador.Algoritmo;
-
-import javax.swing.*;
-import java.awt.*;
-
-/**
- * Interfaz gráfica del simulador de planificación.
- * Se ha modificado para utilizar la ListaEnlazada.
- * 
- * @author arianneperret
+ * @author adrianlovera & arianneperret
  */
 public class InterfazSimulador extends JFrame {
     private Planificador planificador;
@@ -47,7 +25,7 @@ public class InterfazSimulador extends JFrame {
     public InterfazSimulador(Planificador planificador) {
         this.planificador = planificador;
         setTitle("Simulador de Planificación");
-        setSize(600, 400);
+        setSize(700, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
@@ -102,39 +80,46 @@ public class InterfazSimulador extends JFrame {
         new Thread(this::actualizarInterfaz).start();
     }
 
-    // Método para agregar un proceso aleatorio
+    // Método para agregar un proceso con valores aleatorios
     private void agregarProceso() {
         String nombre = "P" + contadorProcesos++; // Genera un nombre único
         boolean esCpuBound = Math.random() > 0.5;
+        int cantidadInstrucciones = (int) (Math.random() * 20) + 5; // Entre 5 y 25 instrucciones
         int ciclosParaExcepcion = esCpuBound ? 0 : (int) (Math.random() * 5) + 2;
         int ciclosAtencionExcepcion = esCpuBound ? 0 : (int) (Math.random() * 3) + 1;
 
-        Proceso proceso = new Proceso(nombre, esCpuBound, ciclosParaExcepcion, ciclosAtencionExcepcion);
+        Proceso proceso = new Proceso(nombre, cantidadInstrucciones, esCpuBound, ciclosParaExcepcion, ciclosAtencionExcepcion);
         planificador.agregarProceso(proceso);
 
         // Actualizar la GUI correctamente
-        modeloListaProcesos.addElement(proceso.getNombre() + " - " + proceso.getEstado());
-        listaProcesos.setModel(modeloListaProcesos);
+        actualizarListaProcesos();
     }
 
     // Método de actualización continua de la interfaz
     private void actualizarInterfaz() {
         while (true) {
-            modeloListaProcesos.clear();
-            for (String proceso : planificador.getListaProcesos()) {
-                modeloListaProcesos.addElement(proceso);
-            }
-            listaProcesos.setModel(modeloListaProcesos);
+            actualizarListaProcesos();
 
+            // Actualizar el estado de las CPUs
             for (int i = 0; i < etiquetasCPU.length; i++) {
-                etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + planificador.getEstadoCPU(i));
+                String estadoCPU = planificador.getEstadoCPU(i);
+                etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + estadoCPU);
             }
 
             try {
-                Thread.sleep(1000);
+                Thread.sleep(1000); // Actualizar cada segundo
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
     }
+
+    // Método para actualizar la lista de procesos en la interfaz
+    private void actualizarListaProcesos() {
+    modeloListaProcesos.clear();
+    for (Proceso proceso : planificador.getListaProcesos()) { // ✅ Obtener lista de procesos correctamente
+        modeloListaProcesos.addElement(proceso.toString());  // ✅ Convertir proceso en String antes de agregarlo
+    }
+    listaProcesos.setModel(modeloListaProcesos);
+}
 }
