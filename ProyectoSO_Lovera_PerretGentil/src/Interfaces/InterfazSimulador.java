@@ -42,6 +42,7 @@ public class InterfazSimulador extends JFrame {
     private JLabel[] etiquetasCPU;
     private JComboBox<String> selectorAlgoritmo;
     private JButton btnAgregarProceso;
+    private static int contadorProcesos = 1; // Contador estático para nombres únicos
 
     public InterfazSimulador(Planificador planificador) {
         this.planificador = planificador;
@@ -86,14 +87,14 @@ public class InterfazSimulador extends JFrame {
             System.out.println("Proceso agregado correctamente.");
         });
 
-        // Panel de controles (donde está el botón y el selector de algoritmo)
+        // Panel de controles
         JPanel panelControles = new JPanel();
         panelControles.add(new JLabel("Algoritmo:"));
         panelControles.add(selectorAlgoritmo);
-        panelControles.add(btnAgregarProceso); // ✅ Aseguramos que el botón se agrega
+        panelControles.add(btnAgregarProceso);
 
         // Agregar elementos a la GUI
-        add(panelControles, BorderLayout.NORTH);  // ✅ Aseguramos que el botón se visualiza en la parte superior
+        add(panelControles, BorderLayout.NORTH);
         add(panelPrincipal, BorderLayout.CENTER);
         add(panelCPUs, BorderLayout.SOUTH);
 
@@ -103,22 +104,27 @@ public class InterfazSimulador extends JFrame {
 
     // Método para agregar un proceso aleatorio
     private void agregarProceso() {
-        String nombre = "P" + (modeloListaProcesos.getSize() + 1);
+        String nombre = "P" + contadorProcesos++; // Genera un nombre único
         boolean esCpuBound = Math.random() > 0.5;
         int ciclosParaExcepcion = esCpuBound ? 0 : (int) (Math.random() * 5) + 2;
         int ciclosAtencionExcepcion = esCpuBound ? 0 : (int) (Math.random() * 3) + 1;
 
         Proceso proceso = new Proceso(nombre, esCpuBound, ciclosParaExcepcion, ciclosAtencionExcepcion);
         planificador.agregarProceso(proceso);
-        
-        // Actualizar GUI después de agregar un proceso
-        actualizarInterfaz();
+
+        // Actualizar la GUI correctamente
+        modeloListaProcesos.addElement(proceso.getNombre() + " - " + proceso.getEstado());
+        listaProcesos.setModel(modeloListaProcesos);
     }
 
     // Método de actualización continua de la interfaz
     private void actualizarInterfaz() {
         while (true) {
-            listaProcesos.setListData(planificador.getListaProcesos());
+            modeloListaProcesos.clear();
+            for (String proceso : planificador.getListaProcesos()) {
+                modeloListaProcesos.addElement(proceso);
+            }
+            listaProcesos.setModel(modeloListaProcesos);
 
             for (int i = 0; i < etiquetasCPU.length; i++) {
                 etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + planificador.getEstadoCPU(i));
