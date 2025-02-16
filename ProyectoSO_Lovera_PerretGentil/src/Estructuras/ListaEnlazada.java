@@ -125,5 +125,29 @@ public Proceso[] obtenerTodosProcesos() {
     }
     return lista;
 }
+// Método para remover un proceso específico de la lista
+public boolean removerProceso(Proceso proceso) {
+    if (head == null) return false; // Lista vacía
+
+    // Si el proceso a eliminar es el primero
+    if (head.proceso.equals(proceso)) {
+        head = head.siguiente;
+        if (head == null) tail = null; // Si la lista quedó vacía
+        return true;
+    }
+
+    // Buscar el proceso en la lista
+    Nodo actual = head;
+    while (actual.siguiente != null) {
+        if (actual.siguiente.proceso.equals(proceso)) {
+            actual.siguiente = actual.siguiente.siguiente;
+            if (actual.siguiente == null) tail = actual; // Si eliminamos el último nodo
+            return true;
+        }
+        actual = actual.siguiente;
+    }
+
+    return false; // No se encontró el proceso
+}
 
 }
