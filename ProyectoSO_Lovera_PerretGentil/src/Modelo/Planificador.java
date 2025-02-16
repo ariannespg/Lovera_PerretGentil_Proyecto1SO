@@ -38,7 +38,10 @@ public class Planificador {
     }
 
     // Permite cambiar el número de CPUs en tiempo de ejecución
-    public void configurarCPUs(int numCPUs) {
+public void configurarCPUs(int numCPUs) {
+    try {
+        semaforoAsignacion.acquire(); // Bloquea para evitar interferencia del planificador
+
         if (numCPUs > cpus.length) {
             // Aumentar: crear e iniciar CPUs adicionales
             CPU[] newCPUs = new CPU[numCPUs];
@@ -54,8 +57,16 @@ public class Planificador {
         } else if (numCPUs < cpus.length) {
             // Disminuir: detener las CPUs excedentes
             for (int i = numCPUs; i < cpus.length; i++) {
+                // Si la CPU tiene un proceso en ejecución, reubicarlo en la cola de listos
+                Proceso procesoEnCurso = cpus[i].getProcesoActual();
+                if (procesoEnCurso != null) {
+                    procesoEnCurso.setEstado(PCB.Estado.READY);
+                    colaListos.agregar(procesoEnCurso);
+                    System.out.println("Proceso " + procesoEnCurso.getNombre() + " reubicado en la cola de listos.");
+                }
                 cpus[i].detener();
             }
+            // Actualiza el arreglo de CPUs para mantener solo las activas
             CPU[] newCPUs = new CPU[numCPUs];
             for (int i = 0; i < numCPUs; i++) {
                 newCPUs[i] = cpus[i];
@@ -65,7 +76,13 @@ public class Planificador {
         } else {
             System.out.println("Número de CPUs sin cambios.");
         }
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    } finally {
+        semaforoAsignacion.release();
     }
+}
+
 
     public void agregarProceso(Proceso proceso) {
         try {
