@@ -105,5 +105,25 @@ public String[] obtenerListaProcesos() {
     return lista;
 }
 
+public Proceso[] obtenerTodosProcesos() {
+    Nodo actual = head;
+    int size = 0;
+
+    // Contar elementos
+    while (actual != null) {
+        size++;
+        actual = actual.siguiente;
+    }
+
+    // Crear array y llenarlo con los procesos
+    Proceso[] lista = new Proceso[size];
+    actual = head;
+    int i = 0;
+    while (actual != null) {
+        lista[i++] = actual.proceso;
+        actual = actual.siguiente;
+    }
+    return lista;
+}
 
 }
