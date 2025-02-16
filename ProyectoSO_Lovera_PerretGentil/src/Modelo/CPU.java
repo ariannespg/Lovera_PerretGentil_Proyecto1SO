@@ -5,15 +5,10 @@
 package Modelo;
 import java.util.concurrent.Semaphore;
 
-
-/**
- *
- * @author arianneperret-gentil y Adrian!!!
- */
 public class CPU extends Thread {
     private int id;
-    private Proceso procesoActual;
-    private boolean ejecutando;
+    private volatile Proceso procesoActual; // <--- ahora es volatile
+    private volatile boolean ejecutando;     // <--- ahora es volatile
     private int duracionCiclo;
     private final Object lock = new Object(); // Para sincronización
     private Semaphore semaforoCPU; // Controla acceso a la CPU
@@ -23,13 +18,13 @@ public class CPU extends Thread {
         this.procesoActual = null;
         this.ejecutando = true;
         this.duracionCiclo = duracionCiclo;
-        this.semaforoCPU = new Semaphore(1); // Solo un proceso a la vez
+        this.semaforoCPU = new Semaphore(1); // Permite un proceso a la vez
     }
 
-    // Asignar un proceso a la CPU de forma sincronizada
+    // Asigna un proceso a la CPU de forma sincronizada
     public void asignarProceso(Proceso proceso) {
         try {
-            semaforoCPU.acquire(); // Bloquea la CPU hasta que se libere
+            semaforoCPU.acquire();
             synchronized (lock) {
                 this.procesoActual = proceso;
                 this.procesoActual.setEstado(PCB.Estado.RUNNING);
@@ -44,27 +39,29 @@ public class CPU extends Thread {
     public void run() {
         while (ejecutando) {
             synchronized (lock) {
-                while (procesoActual == null) {
+                while (procesoActual == null && ejecutando) {
                     try {
-                        lock.wait(); // Espera hasta que se le asigne un proceso
+                        lock.wait();
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        if (!ejecutando) break;
                     }
                 }
             }
+
+            if (!ejecutando) break;
 
             // Ejecutar ciclo de proceso
             while (procesoActual != null && procesoActual.getEstado() == PCB.Estado.RUNNING) {
                 procesoActual.ejecutarCiclo();
                 System.out.println("CPU " + id + " ejecutando: " + procesoActual.getNombre());
 
-                // Si el proceso se bloquea por I/O, la CPU lo libera
+                // Si el proceso se bloquea por I/O, lo libera
                 if (procesoActual.getEstado() == PCB.Estado.BLOCKED) {
                     System.out.println("CPU " + id + " bloqueada por I/O en proceso " + procesoActual.getNombre());
                     procesoActual.resolverExcepcion();
-                    procesoActual = null; // Libera la CPU
+                    procesoActual = null;
                     semaforoCPU.release();
-                    break; // Sale del bucle para esperar otro proceso
+                    break;
                 }
 
                 // Si el proceso termina, la CPU lo libera
@@ -82,9 +79,10 @@ public class CPU extends Thread {
                 }
             }
         }
+        System.out.println("CPU " + id + " se ha detenido.");
     }
 
-    // Interrumpir un proceso (para Round Robin)
+    // Interrumpe el proceso actual (por ejemplo, para Round Robin)
     public void interrumpirProceso() {
         synchronized (lock) {
             if (procesoActual != null) {
@@ -97,7 +95,16 @@ public class CPU extends Thread {
         }
     }
 
-    // Verificar si la CPU está ocupada
+    // Detiene la CPU (para disminuir el número de CPUs)
+    public void detener() {
+        ejecutando = false;
+        synchronized (lock) {
+            lock.notifyAll();
+        }
+        this.interrupt();
+    }
+
+    // Verifica si la CPU está ocupada
     public boolean estaOcupada() {
         return procesoActual != null;
     }

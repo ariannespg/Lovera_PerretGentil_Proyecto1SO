@@ -10,25 +10,22 @@ package Config;
  */
 public class Configuracion {
     
-    // Parámetros principales del simulador
-    private int duracionCiclo;             // en ms o segundos
-    private int numProcesadores;           // entre 2 y 3
-    private int instruccionesPorProceso;   // longitud por proceso
-    private boolean cpuBound;             // true = CPU-bound, false = I/O-bound
-    private int ciclosParaExcepcion;      // cada cuántos ciclos se genera la excepción
-    private int ciclosAtencionExcepcion;  // cuántos ciclos tarda en resolverse
+    private int duracionCiclo;
+    private int numProcesadores; // Entre 2 y 3
+    private int instruccionesPorProceso;
+    private boolean cpuBound;
+    private int ciclosParaExcepcion;
+    private int ciclosAtencionExcepcion;
 
-    // Constructor por defecto
     public Configuracion() {
         this.duracionCiclo = 1000; // 1 seg
-        this.numProcesadores = 2;
+        this.numProcesadores = 2;  // Valor por defecto
         this.instruccionesPorProceso = 10;
         this.cpuBound = true;
         this.ciclosParaExcepcion = 3;
         this.ciclosAtencionExcepcion = 2;
     }
 
-    // Getters y Setters
     public int getDuracionCiclo() {
         return duracionCiclo;
     }
@@ -42,7 +39,11 @@ public class Configuracion {
     }
 
     public void setNumProcesadores(int numProcesadores) {
-        this.numProcesadores = numProcesadores;
+        if (numProcesadores >= 2 && numProcesadores <= 3) {
+            this.numProcesadores = numProcesadores;
+        } else {
+            throw new IllegalArgumentException("Número de CPUs debe ser 2 o 3.");
+        }
     }
 
     public int getInstruccionesPorProceso() {

@@ -4,23 +4,23 @@
  */
 package proyectoso_lovera_perretgentil;
 
+import Config.Configuracion;
 import Interfaces.InterfazSimulador;
-import Modelo.CPU;
 import Modelo.Planificador;
 import Modelo.Planificador.Algoritmo;
-import Modelo.Proceso;
 import javax.swing.SwingUtilities;
 
-/**
- *
- * @author arianneperret-gentil
- */
 public class Main {
     public static void main(String[] args) {
-        Planificador planificador = new Planificador(2, Algoritmo.FCFS, 2000);
+        // Crear la configuración
+        Configuracion configuracion = new Configuracion();
+        int numCPUs = configuracion.getNumProcesadores(); // Valor inicial (2)
+        
+        // Crear el planificador usando la configuración
+        Planificador planificador = new Planificador(numCPUs, Algoritmo.FCFS, configuracion.getDuracionCiclo());
 
         SwingUtilities.invokeLater(() -> {
-            InterfazSimulador ventana = new InterfazSimulador(planificador);
+            InterfazSimulador ventana = new InterfazSimulador(planificador, configuracion);
             ventana.setVisible(true);
         });
 

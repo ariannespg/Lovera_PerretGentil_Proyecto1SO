@@ -4,92 +4,58 @@
  */
 package Modelo;
 
-/**
- *
- * @author adrianlovera
- */
 public class Proceso {
-    private static int contadorProcesos = 1; // ID autoincremental
-    private int id;
+    private static int contador = 1;
+    private final int id;
     private String nombre;
-    private PCB pcb;
+    private final int instrucciones;
     private boolean esCpuBound;
-    private int cantidadInstrucciones;
-    private int ciclosParaExcepcion;
-    private int ciclosAtencionExcepcion;
+    private int ciclosParaExcepcion;      // Solo para I/O bound
+    private int ciclosAtencionExcepcion;  // Solo para I/O bound
     private int ciclosRestantesBloqueado;
-    private int ciclosEjecutadosDesdeUltimoBloqueo;
-    private int ciclosEjecutados;
-    private int cpuIdThread;
-    private int cicloEnqueCola;
-    private int instruccionesEjecutadas;
-    private boolean tomado; // Indica si el proceso fue tomado por un CPU
+    
+    // Ahora usamos un PCB para gestionar el PC, MAR y estado
+    private PCB pcb;
 
-    // Constructor
-    public Proceso(String nombre, int cantidadInstrucciones, boolean esCpuBound, Integer ciclosParaExcepcion, Integer ciclosAtencionExcepcion) {
-        if (nombre == null || nombre.isEmpty()) {
-            throw new IllegalArgumentException("El nombre no puede ser nulo o vacío.");
-        }
-        if (cantidadInstrucciones <= 0) {
-            throw new IllegalArgumentException("La cantidad de instrucciones debe ser mayor que 0.");
-        }
-
-        this.id = contadorProcesos++;
+    public Proceso(String nombre, int instrucciones, boolean esCpuBound, int ciclosParaExcepcion, int ciclosAtencionExcepcion) {
+        this.id = contador++;
         this.nombre = nombre;
-        this.cantidadInstrucciones = cantidadInstrucciones;
+        this.instrucciones = instrucciones;
         this.esCpuBound = esCpuBound;
-        this.pcb = new PCB(id, nombre);
-        this.cpuIdThread = 0;
-        this.cicloEnqueCola = -1;
-        this.instruccionesEjecutadas = 0;
-        this.tomado = false;
-
         if (!esCpuBound) {
-            if (ciclosParaExcepcion == null || ciclosAtencionExcepcion == null) {
-                throw new IllegalArgumentException("Ciclos de excepción requeridos para I/O-bound.");
-            }
             this.ciclosParaExcepcion = ciclosParaExcepcion;
             this.ciclosAtencionExcepcion = ciclosAtencionExcepcion;
         } else {
             this.ciclosParaExcepcion = 0;
             this.ciclosAtencionExcepcion = 0;
         }
-
         this.ciclosRestantesBloqueado = 0;
-        this.ciclosEjecutadosDesdeUltimoBloqueo = 0;
-        this.ciclosEjecutados = 0;
+        // Inicializamos el PCB con el id y nombre del proceso
+        this.pcb = new PCB(this.id, this.nombre);
     }
 
-    // Método que simula la ejecución del proceso
+    // Método para simular la ejecución de un ciclo
     public void ejecutarCiclo() {
         if (pcb.getEstado() == PCB.Estado.RUNNING) {
-            pcb.incrementarPC();
-            ciclosEjecutados++;
-            instruccionesEjecutadas++;
-            ciclosEjecutadosDesdeUltimoBloqueo++;
-
-            if (!esCpuBound && ciclosEjecutadosDesdeUltimoBloqueo >= ciclosParaExcepcion) {
-                setEstado(PCB.Estado.BLOCKED);
-                ciclosRestantesBloqueado = ciclosAtencionExcepcion;
-                System.out.println("Proceso " + nombre + " bloqueado por I/O.");
+            pcb.incrementarPC(); // Incrementa PC y MAR
+            if (pcb.getProgramCounter() >= instrucciones) {
+                pcb.setEstado(PCB.Estado.FINISHED);
             }
+            // Aquí puedes ampliar la lógica para procesos I/O bound (por ejemplo, cambiar el estado a BLOCKED)
         }
     }
 
-    // Método para reanudar el proceso tras una excepción
+    // Simula la resolución de una excepción
     public void resolverExcepcion() {
         try {
             Thread.sleep(ciclosAtencionExcepcion * 1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        ciclosRestantesBloqueado = 0;
-        ciclosEjecutadosDesdeUltimoBloqueo = 0;
-        setEstado(PCB.Estado.READY);
-        System.out.println("Proceso " + nombre + " reanudado tras I/O.");
+        pcb.setEstado(PCB.Estado.READY);
     }
 
-    // Getters y Setters
+    // Getters y setters delegados en PCB
     public int getId() {
         return id;
     }
@@ -98,93 +64,37 @@ public class Proceso {
         return nombre;
     }
 
-    public int getCantidadInstrucciones() {
-        return cantidadInstrucciones;
+    // Devuelve el PC almacenado en el PCB
+    public int getPC() {
+        return pcb.getProgramCounter();
     }
 
-    public void setCantidadInstrucciones(int cantidadInstrucciones) {
-        this.cantidadInstrucciones = cantidadInstrucciones;
+    // Devuelve el MAR almacenado en el PCB
+    public int getMAR() {
+        return pcb.getMar();
     }
 
-    public PCB getPcb() {
-        return pcb;
-    }
+    // Devuelve el estado actual (según el PCB)
+    public PCB.Estado getEstado() {
+    return pcb.getEstado();
+}
 
-    public boolean isCpuBound() {
-        return esCpuBound;
-    }
-
-    public int getCiclosEjecutados() {
-        return ciclosEjecutados;
+    // Permite cambiar el estado (usando el PCB)
+    public void setEstado(PCB.Estado estado) {
+        pcb.setEstado(estado);
     }
 
     public int getCiclosRestantesBloqueado() {
         return ciclosRestantesBloqueado;
     }
 
-    public void setCiclosRestantesBloqueado(int ciclosRestantesBloqueado) {
-        this.ciclosRestantesBloqueado = ciclosRestantesBloqueado;
+    public void setCiclosRestantesBloqueado(int n) {
+        this.ciclosRestantesBloqueado = n;
     }
 
-    public int getCiclosEjecutadosDesdeUltimoBloqueo() {
-        return ciclosEjecutadosDesdeUltimoBloqueo;
-    }
-
-    public void incrementarCiclosEjecutados() {
-        this.ciclosEjecutadosDesdeUltimoBloqueo++;
-    }
-
-    public int getCiclosParaExcepcion() {
-        return ciclosParaExcepcion;
-    }
-
-    public int getCiclosParaSatisfacerExcepcion() {
-        return ciclosAtencionExcepcion;
-    }
-
-    public int getPC() {
-        return pcb.getProgramCounter();
-    }
-
-    public void setPC(int PC) {
-        this.pcb.setProgramCounter(PC);
-    }
-
-    public int getMAR() {
-        return pcb.getMar();
-    }
-
-    public void setMAR(int MAR) {
-        this.pcb.setMar(MAR);
-    }
-
-    public int getcpuIdThread() {
-        return cpuIdThread;
-    }
-
-    public void setcpuIdThread(int cpuIdThread) {
-        this.cpuIdThread = cpuIdThread;
-    }
-
-    public boolean isTomado() {
-        return tomado;
-    }
-
-    public void setTomado(boolean tomado) {
-        this.tomado = tomado;
-    }
-
-    // 📌 **RESTAURADO: getEstado() y setEstado()**
-    public PCB.Estado getEstado() {
-        return pcb.getEstado();
-    }
-
-    public void setEstado(PCB.Estado estado) {
-        this.pcb.setEstado(estado);
-    }
-
-    public int getTiempoRestante() {
-        return cantidadInstrucciones - instruccionesEjecutadas;
+    // Método para obtener el PCB (necesario para SJF en ListaEnlazada)
+    public PCB getPcb() {
+        return pcb;
     }
 
     @Override
@@ -192,15 +102,9 @@ public class Proceso {
         return "Proceso{" +
                 "id=" + id +
                 ", nombre='" + nombre + '\'' +
-                ", cantidadInstrucciones=" + cantidadInstrucciones +
-                ", tipo=" + (esCpuBound ? "CPU-bound" : "I/O-bound") +
-                ", ciclosParaExcepcion=" + ciclosParaExcepcion +
-                ", ciclosParaSatisfacerExcepcion=" + ciclosAtencionExcepcion +
-                ", estado=" + getEstado() +
-                ", PC=" + getPC() +
-                ", MAR=" + getMAR() +
-                ", instruccionesEjecutadas=" + instruccionesEjecutadas +
-                ", tiempoRestante=" + getTiempoRestante() +
+                ", estado=" + pcb.getEstado() +
+                ", PC=" + pcb.getProgramCounter() +
+                ", MAR=" + pcb.getMar() +
                 '}';
     }
 }
