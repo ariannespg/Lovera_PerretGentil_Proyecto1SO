@@ -8,16 +8,20 @@ public class Proceso {
     private static int contador = 1;
     private final int id;
     private String nombre;
-    private final int instrucciones;
+    private final int instrucciones; // cantidad total de instrucciones
     private boolean esCpuBound;
     private int ciclosParaExcepcion;      // Solo para I/O bound
     private int ciclosAtencionExcepcion;  // Solo para I/O bound
     private int ciclosRestantesBloqueado;
     
-    // Ahora usamos un PCB para gestionar el PC, MAR y estado
+    // PCB para manejar PC, MAR, estado, etc.
     private PCB pcb;
 
-    public Proceso(String nombre, int instrucciones, boolean esCpuBound, int ciclosParaExcepcion, int ciclosAtencionExcepcion) {
+    // Para HRRN
+    private long arrivalTime; // marca de tiempo cuando entra a READY
+
+    public Proceso(String nombre, int instrucciones, boolean esCpuBound, 
+                   int ciclosParaExcepcion, int ciclosAtencionExcepcion) {
         this.id = contador++;
         this.nombre = nombre;
         this.instrucciones = instrucciones;
@@ -30,32 +34,35 @@ public class Proceso {
             this.ciclosAtencionExcepcion = 0;
         }
         this.ciclosRestantesBloqueado = 0;
-        // Inicializamos el PCB con el id y nombre del proceso
         this.pcb = new PCB(this.id, this.nombre);
+
+        // Por defecto, arrivalTime = 0; se setea en Planificador cuando se ingresa a la cola
+        this.arrivalTime = 0;
     }
 
-    // Método para simular la ejecución de un ciclo
+    // Simular la ejecución de un ciclo
     public void ejecutarCiclo() {
         if (pcb.getEstado() == PCB.Estado.RUNNING) {
-            pcb.incrementarPC(); // Incrementa PC y MAR
+            pcb.incrementarPC(); 
             if (pcb.getProgramCounter() >= instrucciones) {
                 pcb.setEstado(PCB.Estado.FINISHED);
             }
-            // Aquí puedes ampliar la lógica para procesos I/O bound (por ejemplo, cambiar el estado a BLOCKED)
+            // Lógica de bloqueo (I/O) no detallada aquí, 
+            // puede usarse ciclosParaExcepcion para forzar un BLOCKED en cierto momento.
         }
     }
 
     // Simula la resolución de una excepción
     public void resolverExcepcion() {
         try {
-            Thread.sleep(ciclosAtencionExcepcion * 1000);
+            Thread.sleep(ciclosAtencionExcepcion * 1000L);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         pcb.setEstado(PCB.Estado.READY);
     }
 
-    // Getters y setters delegados en PCB
+    // Getters y setters
     public int getId() {
         return id;
     }
@@ -64,22 +71,18 @@ public class Proceso {
         return nombre;
     }
 
-    // Devuelve el PC almacenado en el PCB
     public int getPC() {
         return pcb.getProgramCounter();
     }
 
-    // Devuelve el MAR almacenado en el PCB
     public int getMAR() {
         return pcb.getMar();
     }
 
-    // Devuelve el estado actual (según el PCB)
     public PCB.Estado getEstado() {
-    return pcb.getEstado();
-}
+        return pcb.getEstado();
+    }
 
-    // Permite cambiar el estado (usando el PCB)
     public void setEstado(PCB.Estado estado) {
         pcb.setEstado(estado);
     }
@@ -92,9 +95,33 @@ public class Proceso {
         this.ciclosRestantesBloqueado = n;
     }
 
-    // Método para obtener el PCB (necesario para SJF en ListaEnlazada)
     public PCB getPcb() {
         return pcb;
+    }
+
+    public int getInstrucciones() {
+        return instrucciones;
+    }
+
+    public boolean isEsCpuBound() {
+        return esCpuBound;
+    }
+
+    public int getCiclosParaExcepcion() {
+        return ciclosParaExcepcion;
+    }
+
+    public int getCiclosAtencionExcepcion() {
+        return ciclosAtencionExcepcion;
+    }
+
+    // Para HRRN
+    public long getArrivalTime() {
+        return arrivalTime;
+    }
+
+    public void setArrivalTime(long arrivalTime) {
+        this.arrivalTime = arrivalTime;
     }
 
     @Override

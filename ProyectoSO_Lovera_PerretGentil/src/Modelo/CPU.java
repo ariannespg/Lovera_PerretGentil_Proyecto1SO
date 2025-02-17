@@ -3,15 +3,18 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package Modelo;
+
 import java.util.concurrent.Semaphore;
 
 public class CPU extends Thread {
     private int id;
-    private volatile Proceso procesoActual; // <--- ahora es volatile
-    private volatile boolean ejecutando;     // <--- ahora es volatile
+    private volatile Proceso procesoActual; 
+    private volatile boolean ejecutando;     
     private int duracionCiclo;
-    private final Object lock = new Object(); // Para sincronización
+    private final Object lock = new Object(); 
     private Semaphore semaforoCPU; // Controla acceso a la CPU
+    private Planificador planificador;
+
 
     public CPU(int id, int duracionCiclo) {
         this.id = id;
@@ -28,7 +31,7 @@ public class CPU extends Thread {
             synchronized (lock) {
                 this.procesoActual = proceso;
                 this.procesoActual.setEstado(PCB.Estado.RUNNING);
-                lock.notify(); // Despierta la CPU si estaba esperando
+                lock.notify(); 
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -57,12 +60,16 @@ public class CPU extends Thread {
 
                 // Si el proceso se bloquea por I/O, lo libera
                 if (procesoActual.getEstado() == PCB.Estado.BLOCKED) {
-                    System.out.println("CPU " + id + " bloqueada por I/O en proceso " + procesoActual.getNombre());
-                    procesoActual.resolverExcepcion();
-                    procesoActual = null;
-                    semaforoCPU.release();
-                    break;
-                }
+                    System.out.println("CPU " + id + " detectó bloqueo en proceso " + procesoActual.getNombre());
+                    if (planificador != null) {
+    planificador.agregarBloqueado(procesoActual);
+
+    }
+    procesoActual = null;
+    semaforoCPU.release();
+    break;
+}
+
 
                 // Si el proceso termina, la CPU lo libera
                 if (procesoActual.getEstado() == PCB.Estado.FINISHED) {
@@ -82,7 +89,7 @@ public class CPU extends Thread {
         System.out.println("CPU " + id + " se ha detenido.");
     }
 
-    // Interrumpe el proceso actual (por ejemplo, para Round Robin)
+    // Interrumpe el proceso actual (por ejemplo, para Round Robin o SRT)
     public void interrumpirProceso() {
         synchronized (lock) {
             if (procesoActual != null) {
@@ -116,4 +123,9 @@ public class CPU extends Thread {
     public int getIdCPU() {
         return id;
     }
+    
+    public void setPlanificador(Planificador p) {
+    this.planificador = p;
+}
+
 }

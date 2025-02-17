@@ -7,6 +7,9 @@ package Config;
 /**
  *
  * @author arianneperret-gentil
+/**
+ * Clase que define los parámetros de configuración 
+ * para la simulación.
  */
 public class Configuracion {
     

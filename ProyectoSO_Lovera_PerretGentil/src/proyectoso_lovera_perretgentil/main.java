@@ -12,18 +12,23 @@ import javax.swing.SwingUtilities;
 
 public class Main {
     public static void main(String[] args) {
-        // Crear la configuración
+        // Crear la configuración (puedes cargarla de un JSON, si lo deseas)
         Configuracion configuracion = new Configuracion();
-        int numCPUs = configuracion.getNumProcesadores(); // Valor inicial (2)
+        int numCPUs = configuracion.getNumProcesadores(); // 2 por defecto
         
-        // Crear el planificador usando la configuración
-        Planificador planificador = new Planificador(numCPUs, Algoritmo.FCFS, configuracion.getDuracionCiclo());
+        // Crear el planificador con FCFS por defecto (puedes cambiarlo)
+        Planificador planificador = new Planificador(
+                numCPUs,
+                Algoritmo.FCFS,
+                configuracion.getDuracionCiclo()
+        );
 
+        // Lanzar la interfaz gráfica
         SwingUtilities.invokeLater(() -> {
             InterfazSimulador ventana = new InterfazSimulador(planificador, configuracion);
             ventana.setVisible(true);
         });
 
-        new Thread(planificador::planificar).start();
+        // El hilo planificador corre internamente en Planificador
     }
 }

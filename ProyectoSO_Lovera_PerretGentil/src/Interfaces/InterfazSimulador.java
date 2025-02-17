@@ -20,7 +20,6 @@ public class InterfazSimulador extends JFrame {
     private JComboBox<Integer> selectorNumCPUs;
     private final JButton btnAgregarProceso;
     private final JButton btnAplicarConfig;
-    private static int contadorProcesos = 1;
 
     public InterfazSimulador(Planificador planificador, Configuracion configuracion) {
         this.planificador = planificador;
@@ -31,15 +30,37 @@ public class InterfazSimulador extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // Panel de controles
+        // Panel de controles (parte superior)
         JPanel panelControles = new JPanel();
-        selectorAlgoritmo = new JComboBox<>(new String[]{"FCFS", "SJF", "Round Robin"});
+        
+        // ComboBox con las 5 políticas de planificación
+        selectorAlgoritmo = new JComboBox<>(new String[]{
+            "FCFS", 
+            "SJF", 
+            "Round Robin",
+            "SRT",
+            "HRRN"
+        });
+        
+        // Listener para cambio de algoritmo
         selectorAlgoritmo.addActionListener(e -> {
             String seleccionado = (String) selectorAlgoritmo.getSelectedItem();
             switch (seleccionado) {
-                case "FCFS": planificador.setAlgoritmo(Algoritmo.FCFS); break;
-                case "SJF": planificador.setAlgoritmo(Algoritmo.SJF); break;
-                case "Round Robin": planificador.setAlgoritmo(Algoritmo.ROUND_ROBIN); break;
+                case "FCFS":
+                    planificador.setAlgoritmo(Algoritmo.FCFS);
+                    break;
+                case "SJF":
+                    planificador.setAlgoritmo(Algoritmo.SJF);
+                    break;
+                case "Round Robin":
+                    planificador.setAlgoritmo(Algoritmo.ROUND_ROBIN);
+                    break;
+                case "SRT":
+                    planificador.setAlgoritmo(Algoritmo.SRT);
+                    break;
+                case "HRRN":
+                    planificador.setAlgoritmo(Algoritmo.HRRN);
+                    break;
             }
         });
 
@@ -51,9 +72,8 @@ public class InterfazSimulador extends JFrame {
         btnAplicarConfig.addActionListener(e -> {
             int numCPUs = (Integer) selectorNumCPUs.getSelectedItem();
             configuracion.setNumProcesadores(numCPUs);
-            planificador.configurarCPUs(numCPUs); // Actualiza las CPUs en el planificador
+            planificador.configurarCPUs(numCPUs);
             actualizarPanelCPUs();
-            // Aquí también puedes llamar a un método para guardar la configuración en un archivo (TXT, CSV o JSON)
         });
 
         btnAgregarProceso = new JButton("Agregar Proceso");
@@ -66,7 +86,7 @@ public class InterfazSimulador extends JFrame {
         panelControles.add(btnAplicarConfig);
         panelControles.add(btnAgregarProceso);
 
-        // Panel de tablas para visualizar procesos
+        // Panel con tablas de listos y bloqueados
         JPanel panelTablas = new JPanel(new GridLayout(2, 1));
         modeloTablaListos = new DefaultTableModel(new Object[]{"ID", "Nombre", "Estado", "PC", "MAR"}, 0);
         tablaProcesosListos = new JTable(modeloTablaListos);
@@ -81,11 +101,12 @@ public class InterfazSimulador extends JFrame {
         add(panelControles, BorderLayout.NORTH);
         add(panelTablas, BorderLayout.CENTER);
 
+        // Hilo que refresca la interfaz
         new Thread(this::actualizarInterfaz).start();
     }
 
-    // Actualiza el panel inferior que muestra el estado de cada CPU
     private void actualizarPanelCPUs() {
+        // Elimina el panel anterior si existe
         if (etiquetasCPU != null && etiquetasCPU.length > 0) {
             remove(etiquetasCPU[0].getParent());
         }
@@ -100,7 +121,6 @@ public class InterfazSimulador extends JFrame {
         repaint();
     }
 
-    // Método para crear un proceso mediante un formulario de entrada
     private void agregarProceso() {
         JPanel panel = new JPanel(new GridLayout(0, 2));
 
@@ -116,12 +136,16 @@ public class InterfazSimulador extends JFrame {
         panel.add(instruccionesField);
         panel.add(new JLabel("Tipo de proceso:"));
         panel.add(cpuBoundCheck);
-        panel.add(new JLabel("Ciclos para excepción (solo I/O bound):"));
+        panel.add(new JLabel("Ciclos para excepción (I/O bound):"));
         panel.add(ciclosExcepcionField);
-        panel.add(new JLabel("Ciclos para atender excepción (solo I/O bound):"));
+        panel.add(new JLabel("Ciclos atención excepción (I/O bound):"));
         panel.add(ciclosAtencionField);
 
-        int result = JOptionPane.showConfirmDialog(this, panel, "Crear Proceso", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+        int result = JOptionPane.showConfirmDialog(
+                this, panel, "Crear Proceso", 
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
+        );
+        
         if (result == JOptionPane.OK_OPTION) {
             try {
                 String nombre = nombreField.getText().trim();
@@ -133,12 +157,23 @@ public class InterfazSimulador extends JFrame {
                     ciclosExcepcion = Integer.parseInt(ciclosExcepcionField.getText().trim());
                     ciclosAtencion = Integer.parseInt(ciclosAtencionField.getText().trim());
                 }
-                Proceso proceso = new Proceso(nombre, instrucciones, esCpuBound, ciclosExcepcion, ciclosAtencion);
+                Proceso proceso = new Proceso(
+                        nombre, 
+                        instrucciones, 
+                        esCpuBound, 
+                        ciclosExcepcion, 
+                        ciclosAtencion
+                );
                 planificador.agregarProceso(proceso);
                 System.out.println("📌 Se ha agregado: " + proceso);
                 actualizarListaProcesos();
             } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "Por favor, ingresa valores numéricos válidos para instrucciones y ciclos.", "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(
+                        this, 
+                        "Por favor, ingresa valores numéricos válidos.", 
+                        "Error", 
+                        JOptionPane.ERROR_MESSAGE
+                );
             }
         }
     }
@@ -162,7 +197,11 @@ public class InterfazSimulador extends JFrame {
         modeloTablaListos.setRowCount(0);
         for (Proceso proceso : planificador.getListaProcesos()) {
             modeloTablaListos.addRow(new Object[]{
-                proceso.getId(), proceso.getNombre(), proceso.getEstado(), proceso.getPC(), proceso.getMAR()
+                proceso.getId(), 
+                proceso.getNombre(), 
+                proceso.getEstado(), 
+                proceso.getPC(), 
+                proceso.getMAR()
             });
         }
     }
@@ -171,7 +210,9 @@ public class InterfazSimulador extends JFrame {
         modeloTablaBloqueados.setRowCount(0);
         for (Proceso proceso : planificador.getListaProcesosBloqueados()) {
             modeloTablaBloqueados.addRow(new Object[]{
-                proceso.getId(), proceso.getNombre(), proceso.getCiclosRestantesBloqueado()
+                proceso.getId(), 
+                proceso.getNombre(), 
+                proceso.getCiclosRestantesBloqueado()
             });
         }
     }

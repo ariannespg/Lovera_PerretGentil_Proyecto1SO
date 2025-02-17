@@ -10,6 +10,11 @@ import Modelo.Proceso;
  *
  * @author adrianlovera
  */
+
+/**
+ * Estructura de datos tipo lista enlazada simple 
+ * para manejar los procesos.
+ */
 public class ListaEnlazada {
     private Nodo head; // Primer elemento de la lista
     private Nodo tail; // Último elemento de la lista
@@ -54,7 +59,8 @@ public class ListaEnlazada {
         return head != null ? head.proceso : null;
     }
 
-    // Obtener el proceso con menor cantidad de instrucciones (para SJF)
+    // Obtener el proceso con menor cantidad de instrucciones restantes (para SJF)
+    // Se asume que "tiempo restante" ~ (instrucciones totales - PC).
     public Proceso obtenerSJF() {
         if (head == null) return null;
 
@@ -63,10 +69,15 @@ public class ListaEnlazada {
         Nodo previoMenor = null;
         Nodo previo = head;
 
+        // Calcula el tiempo restante del primer nodo
+        int tiempoMenor = menorNodo.proceso.getInstrucciones() - menorNodo.proceso.getPC();
+
         while (actual != null) {
-            if (actual.proceso.getPcb().getProgramCounter() < menorNodo.proceso.getPcb().getProgramCounter()) {
+            int tiempoActual = actual.proceso.getInstrucciones() - actual.proceso.getPC();
+            if (tiempoActual < tiempoMenor) {
                 menorNodo = actual;
                 previoMenor = previo;
+                tiempoMenor = tiempoActual;
             }
             previo = actual;
             actual = actual.siguiente;
@@ -83,71 +94,67 @@ public class ListaEnlazada {
         return remover();
     }
     
-    // Método en ListaEnlazada para obtener los procesos en un array de Strings
-public String[] obtenerListaProcesos() {
-    Nodo actual = head;
-    int size = 0;
-    
-    // Contar elementos
-    while (actual != null) {
-        size++;
-        actual = actual.siguiente;
+    // Retorna un arreglo con los nombres y estados de los procesos (para mostrar en GUI)
+    public String[] obtenerListaProcesos() {
+        Nodo actual = head;
+        int size = 0;
+        
+        // Contar elementos
+        while (actual != null) {
+            size++;
+            actual = actual.siguiente;
+        }
+
+        String[] lista = new String[size];
+        actual = head;
+        int i = 0;
+        while (actual != null) {
+            lista[i++] = actual.proceso.getNombre() + " - " + actual.proceso.getEstado();
+            actual = actual.siguiente;
+        }
+        return lista;
     }
 
-    // Crear array y llenarlo con los nombres de los procesos
-    String[] lista = new String[size];
-    actual = head;
-    int i = 0;
-    while (actual != null) {
-        lista[i++] = actual.proceso.getNombre() + " - " + actual.proceso.getEstado();
-        actual = actual.siguiente;
-    }
-    return lista;
-}
+    // Retorna un arreglo con todos los procesos
+    public Proceso[] obtenerTodosProcesos() {
+        Nodo actual = head;
+        int size = 0;
+        while (actual != null) {
+            size++;
+            actual = actual.siguiente;
+        }
 
-public Proceso[] obtenerTodosProcesos() {
-    Nodo actual = head;
-    int size = 0;
-
-    // Contar elementos
-    while (actual != null) {
-        size++;
-        actual = actual.siguiente;
+        Proceso[] lista = new Proceso[size];
+        actual = head;
+        int i = 0;
+        while (actual != null) {
+            lista[i++] = actual.proceso;
+            actual = actual.siguiente;
+        }
+        return lista;
     }
 
-    // Crear array y llenarlo con los procesos
-    Proceso[] lista = new Proceso[size];
-    actual = head;
-    int i = 0;
-    while (actual != null) {
-        lista[i++] = actual.proceso;
-        actual = actual.siguiente;
-    }
-    return lista;
-}
-// Método para remover un proceso específico de la lista
-public boolean removerProceso(Proceso proceso) {
-    if (head == null) return false; // Lista vacía
+    // Remueve un proceso específico
+    public boolean removerProceso(Proceso proceso) {
+        if (head == null) return false; // Lista vacía
 
-    // Si el proceso a eliminar es el primero
-    if (head.proceso.equals(proceso)) {
-        head = head.siguiente;
-        if (head == null) tail = null; // Si la lista quedó vacía
-        return true;
-    }
-
-    // Buscar el proceso en la lista
-    Nodo actual = head;
-    while (actual.siguiente != null) {
-        if (actual.siguiente.proceso.equals(proceso)) {
-            actual.siguiente = actual.siguiente.siguiente;
-            if (actual.siguiente == null) tail = actual; // Si eliminamos el último nodo
+        // Si el proceso a eliminar es el primero
+        if (head.proceso.equals(proceso)) {
+            head = head.siguiente;
+            if (head == null) tail = null;
             return true;
         }
-        actual = actual.siguiente;
+
+        // Buscar el proceso en la lista
+        Nodo actual = head;
+        while (actual.siguiente != null) {
+            if (actual.siguiente.proceso.equals(proceso)) {
+                actual.siguiente = actual.siguiente.siguiente;
+                if (actual.siguiente == null) tail = actual; 
+                return true;
+            }
+            actual = actual.siguiente;
+        }
+        return false;
     }
-
-    return false; // No se encontró el proceso
-}
-
 }
