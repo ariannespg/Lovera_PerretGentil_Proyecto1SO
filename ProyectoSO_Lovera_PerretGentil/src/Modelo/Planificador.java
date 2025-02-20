@@ -258,13 +258,49 @@ public class Planificador {
     
     // Round Robin: similar a FCFS, pero se interrumpe cada 'quantum' ciclos (ver hilo de interrupciones).
     private void planificarRoundRobin() {
-        for (CPU cpu : cpus) {
-            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-                Proceso p = colaListos.remover();
-                cpu.asignarProceso(p);
+    new Thread(() -> {
+        try {
+            semaforoAsignacion.acquire();
+
+            for (CPU cpu : cpus) {
+                if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+                    Proceso proceso = colaListos.remover();
+                    if (proceso != null) {
+                        cpu.asignarProceso(proceso);
+                        System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + proceso.getNombre() + " (Quantum: " + quantum + ")");
+
+                        // 📌 Interrupción después del quantum
+                        new Thread(() -> {
+                            try {
+                                Thread.sleep(quantum * RelojGlobal.getDuracionCiclo());
+                                if (cpu.getProcesoActual() != null && cpu.getProcesoActual().equals(proceso)) {
+                                    System.out.println("⚠️ Round Robin: Quantum terminado. Interrumpiendo " + proceso.getNombre());
+                                    cpu.interrumpirProceso();
+
+                                    // 📌 Si el proceso no ha terminado, vuelve a la cola
+                                    if (proceso.getEstado() != PCB.Estado.FINISHED) {
+                                        proceso.setEstado(PCB.Estado.READY);
+                                        colaListos.agregar(proceso);
+                                        System.out.println("🔄 Proceso " + proceso.getNombre() + " agregado nuevamente a cola de listos.");
+                                    }
+
+                                    planificarRoundRobin(); // 📌 Volver a planificar Round Robin
+                                }
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+                    }
+                }
             }
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaforoAsignacion.release();
         }
-    }
+    }).start();
+}
     
     // SRT: similar a SJF, pero con preempción. La expulsión se maneja en el hilo de interrupciones.
     private void planificarSRT() {
