@@ -1,0 +1,8 @@
+{
+  "duracionCiclo": 1000,
+  "numProcesadores": 2,
+  "instruccionesPorProceso": 10,
+  "cpuBound": true,
+  "ciclosParaExcepcion": 3,
+  "ciclosAtencionExcepcion": 2
+}

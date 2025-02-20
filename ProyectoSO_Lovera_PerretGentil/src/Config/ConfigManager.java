@@ -18,14 +18,25 @@ public class ConfigManager {
 
     // Carga la configuración desde un archivo JSON
     public static Configuracion cargarConfiguracion(String rutaArchivo) {
-        Gson gson = new Gson();
-        try (FileReader reader = new FileReader(rutaArchivo)) {
-            return gson.fromJson(reader, Configuracion.class);
-        } catch (IOException e) {
-            System.err.println("No se pudo cargar la configuración: " + e.getMessage());
-            return null;
-        }
+    Gson gson = new Gson();
+    java.io.File file = new java.io.File(rutaArchivo);
+
+    if (!file.exists()) {
+        System.out.println("Archivo de configuración no encontrado. Creando uno nuevo...");
+        Configuracion nuevaConfig = new Configuracion();
+        guardarConfiguracion(nuevaConfig, rutaArchivo);
+        return nuevaConfig;
     }
+
+    try (FileReader reader = new FileReader(file)) {
+        return gson.fromJson(reader, Configuracion.class);
+    } catch (IOException e) {
+        System.err.println("Error al leer la configuración: " + e.getMessage());
+        e.printStackTrace();
+        return null;
+    }
+}
+
 
     // Guarda la configuración en un archivo JSON
     public static void guardarConfiguracion(Configuracion config, String rutaArchivo) {

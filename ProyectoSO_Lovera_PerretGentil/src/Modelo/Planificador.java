@@ -15,12 +15,12 @@ public class Planificador {
     private Algoritmo algoritmo;
     private int duracionCiclo;
     
-    // Quantum para Round Robin y SRT (según requerimiento, Q = 5 ciclos)
+    // Quantum para Round Robin y SRT
     private int quantum = 5; 
 
     public enum Algoritmo {
         FCFS,       // First-Come, First-Served
-        SJF,        // Shortest Job First (SPN, no expulsivo)
+        SJF,        // Shortest Job First (no expulsivo)
         ROUND_ROBIN, 
         SRT,        // Shortest Remaining Time (SJF expulsivo)
         HRRN        // Highest Response Ratio Next
@@ -34,24 +34,27 @@ public class Planificador {
         this.algoritmo = algoritmo;
         this.duracionCiclo = duracionCiclo;
         
-        // Iniciar las CPUs e inyectar la referencia al planificador para manejar bloqueados
+        // Iniciar las CPUs e inyectar la referencia al planificador
         for (int i = 0; i < numCPUs; i++) {
             cpus[i] = new CPU(i + 1, duracionCiclo);
-            cpus[i].setPlanificador(this);  // IMPORTANTE: para que la CPU pueda agregar a bloqueados
+            cpus[i].setPlanificador(this);
             cpus[i].start();
         }
         
-        // Iniciar el manejo de procesos bloqueados (I/O)
+        // Hilo para manejar procesos bloqueados (I/O)
         new Thread(this::manejarProcesosBloqueados).start();
         
-        // Iniciar el hilo principal de planificación
+        // Hilo principal de planificación
         new Thread(this::planificar).start();
         
-        // Iniciar el hilo de interrupciones para Round Robin y SRT
+        // Hilo de interrupciones (Round Robin, SRT)
         iniciarHiloInterrupciones();
     }
 
-    // Permite cambiar el número de CPUs dinámicamente
+    // ---------------------------------------------------------------------------------
+    // Métodos de configuración
+    // ---------------------------------------------------------------------------------
+
     public void configurarCPUs(int numCPUs) {
         try {
             semaforoAsignacion.acquire();
@@ -95,24 +98,28 @@ public class Planificador {
         }
     }
 
-    // Agrega un proceso a la cola de listos
-    public void agregarProceso(Proceso proceso) {
-    try {
-        semaforoAsignacion.acquire();
-        proceso.setEstado(PCB.Estado.READY);
-        colaListos.agregar(proceso);
-
-        // 📌 Verificar si el proceso realmente se agregó
-        System.out.println("✅ Proceso " + proceso.getNombre() + " agregado a la cola de listos.");
-
-    } catch (InterruptedException e) {
-        e.printStackTrace();
-    } finally {
-        semaforoAsignacion.release();
+    public void setAlgoritmo(Algoritmo nuevoAlgoritmo) {
+        this.algoritmo = nuevoAlgoritmo;
+        System.out.println("Algoritmo cambiado a: " + nuevoAlgoritmo);
     }
-}
-    
-    // Método para agregar un proceso a la cola de bloqueados
+
+    // ---------------------------------------------------------------------------------
+    // Métodos para agregar procesos a colas
+    // ---------------------------------------------------------------------------------
+
+    public void agregarProceso(Proceso proceso) {
+        try {
+            semaforoAsignacion.acquire();
+            proceso.setEstado(PCB.Estado.READY);
+            colaListos.agregar(proceso);
+            System.out.println("✅ Proceso " + proceso.getNombre() + " agregado a la cola de listos.");
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaforoAsignacion.release();
+        }
+    }
+
     public void agregarBloqueado(Proceso proceso) {
         try {
             semaforoAsignacion.acquire();
@@ -125,6 +132,10 @@ public class Planificador {
         }
     }
 
+    // ---------------------------------------------------------------------------------
+    // Métodos de consulta (para la interfaz)
+    // ---------------------------------------------------------------------------------
+
     public Proceso[] getListaProcesos() {
         return colaListos.obtenerTodosProcesos();
     }
@@ -133,58 +144,70 @@ public class Planificador {
         return colaBloqueados.obtenerTodosProcesos();
     }
 
-    // Retorna el estado de la CPU (para la interfaz gráfica)
     public String getEstadoCPU(int i) {
-        if (i < 0 || i >= cpus.length) return "[ERROR]";
-        return cpus[i].estaOcupada()
-                ? "Ejecutando: " + cpus[i].getProcesoActual().getNombre()
-                : "[IDLE]";
+    if (i < 0 || i >= cpus.length) return "[ERROR]";
+    if (!cpus[i].estaOcupada()) {
+        // Si la CPU no está ocupada, se asume que ejecuta el SO
+        return "[SO] Sistema Operativo en ejecución";
+    } else {
+        Proceso p = cpus[i].getProcesoActual();
+        if (p != null) {
+            if (p.isEsSistema()) {
+                return "SO: " + p.getNombre();
+            } else {
+                return "Usuario: " + p.getNombre();
+            }
+        } else {
+            return "[Desconocido]";
+        }
     }
+}
+
 
     public int getNumCPUs() {
         return cpus.length;
     }
 
-    public void setAlgoritmo(Algoritmo nuevoAlgoritmo) {
-        this.algoritmo = nuevoAlgoritmo;
-        System.out.println("Algoritmo cambiado a: " + nuevoAlgoritmo);
-    }
-    
-    // Hilo que maneja los procesos bloqueados (disminuye los ciclos de bloqueo y, al terminar, los retorna a READY)
+    // ---------------------------------------------------------------------------------
+    // Hilo para manejar los procesos bloqueados
+    // ---------------------------------------------------------------------------------
+
     private void manejarProcesosBloqueados() {
-    while (true) {
-        try {
-            semaforoAsignacion.acquire();
-            Proceso[] procesos = colaBloqueados.obtenerTodosProcesos();
-            
-            for (Proceso proceso : procesos) {
-                if (proceso.getCiclosRestantesBloqueado() > 0) {
-                    proceso.setCiclosRestantesBloqueado(proceso.getCiclosRestantesBloqueado() - 1);
+        while (true) {
+            try {
+                semaforoAsignacion.acquire();
+                Proceso[] procesos = colaBloqueados.obtenerTodosProcesos();
+                
+                for (Proceso proceso : procesos) {
+                    if (proceso.getCiclosRestantesBloqueado() > 0) {
+                        proceso.setCiclosRestantesBloqueado(proceso.getCiclosRestantesBloqueado() - 1);
+                    }
+                    if (proceso.getCiclosRestantesBloqueado() == 0) {
+                        proceso.setEstado(PCB.Estado.READY);
+                        colaListos.agregar(proceso);
+                        colaBloqueados.removerProceso(proceso);
+                        System.out.println("🔵 Proceso " + proceso.getNombre() + " ha salido de bloqueado y pasó a READY.");
+                    }
                 }
 
-                if (proceso.getCiclosRestantesBloqueado() == 0) {
-                    proceso.setEstado(PCB.Estado.READY);
-                    colaListos.agregar(proceso);
-                    colaBloqueados.removerProceso(proceso);
-                    System.out.println("🔵 Proceso " + proceso.getNombre() + " ha salido de bloqueado y pasó a READY.");
-                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                semaforoAsignacion.release();
             }
 
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            semaforoAsignacion.release();
-        }
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            try {
+                Thread.sleep(1000); // Verificación cada 1s
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
-}
-    
-    // Hilo principal de planificación: selecciona el proceso a asignar según la política elegida
+
+    // ---------------------------------------------------------------------------------
+    // Hilo principal de planificación: se ejecuta en bucle
+    // ---------------------------------------------------------------------------------
+
     private void planificar() {
         while (true) {
             try {
@@ -211,17 +234,20 @@ public class Planificador {
             } finally {
                 semaforoAsignacion.release();
             }
+            // Pausa breve para no saturar la CPU
             try {
-                Thread.sleep(500); // Pausa breve para no saturar la CPU
+                Thread.sleep(500);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
     }
-    
-    // ----------------- Implementaciones de políticas de planificación -----------------
 
-    // FCFS: asigna el primer proceso de la cola de listos a una CPU libre.
+    // ---------------------------------------------------------------------------------
+    // Políticas de planificación
+    // ---------------------------------------------------------------------------------
+
+    // FCFS: asigna el primer proceso de la cola de listos a cada CPU libre
     private void planificarFCFS() {
         for (CPU cpu : cpus) {
             if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
@@ -230,143 +256,50 @@ public class Planificador {
             }
         }
     }
-    
-    // SJF: asigna el proceso con el menor tiempo restante (instrucciones - PC).
-    public void planificarSJF() {
-    new Thread(() -> {
-        try {
-            semaforoAsignacion.acquire(); // Bloquear acceso a la cola de listos
-            
-            // 📌 Asignar el proceso más corto a cada CPU libre
-            for (CPU cpu : cpus) {
-                if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-                    Proceso procesoMasCorto = colaListos.obtenerSJF();
-                    if (procesoMasCorto != null) {
-                        cpu.asignarProceso(procesoMasCorto);
-                        System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + procesoMasCorto.getNombre() + " (Tiempo restante: " + (procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC()) + ")");
-                    }
-                }
-            }
 
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            semaforoAsignacion.release();
-        }
-    }).start(); // 📌 Se ejecuta en un nuevo hilo para evitar bloquear la interfaz
-}
-    
-    // Round Robin: similar a FCFS, pero se interrumpe cada 'quantum' ciclos (ver hilo de interrupciones).
-    private void planificarRoundRobin() {
-    new Thread(() -> {
-        try {
-            semaforoAsignacion.acquire();
-
-            for (CPU cpu : cpus) {
-                if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-                    Proceso proceso = colaListos.remover();
-                    if (proceso != null) {
-                        cpu.asignarProceso(proceso);
-                        System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + proceso.getNombre() + " (Quantum: " + quantum + ")");
-
-                        // 📌 Interrupción después del quantum
-                        new Thread(() -> {
-                            try {
-                                Thread.sleep(quantum * RelojGlobal.getDuracionCiclo());
-                                if (cpu.getProcesoActual() != null && cpu.getProcesoActual().equals(proceso)) {
-                                    System.out.println("⚠️ Round Robin: Quantum terminado. Interrumpiendo " + proceso.getNombre());
-                                    cpu.interrumpirProceso();
-
-                                    // 📌 Si el proceso no ha terminado, vuelve a la cola
-                                    if (proceso.getEstado() != PCB.Estado.FINISHED) {
-                                        proceso.setEstado(PCB.Estado.READY);
-                                        colaListos.agregar(proceso);
-                                        System.out.println("🔄 Proceso " + proceso.getNombre() + " agregado nuevamente a cola de listos.");
-                                    }
-
-                                    planificarRoundRobin(); // 📌 Volver a planificar Round Robin
-                                }
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }).start();
-                    }
-                }
-            }
-
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            semaforoAsignacion.release();
-        }
-    }).start();
-}
-    
-    // SRT: similar a SJF, pero con preempción. La expulsión se maneja en el hilo de interrupciones.
-    private void planificarSRT() {
-    // 📌 Asignar procesos a CPUs libres
-    for (CPU cpu : cpus) {
-        if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-            Proceso procesoMasCorto = colaListos.obtenerSJF();
-            if (procesoMasCorto != null) {
-                cpu.asignarProceso(procesoMasCorto);
-                System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + procesoMasCorto.getNombre());
-            }
-        }
-    }
-
-    // 📌 Verificar interrupciones y agregar procesos interrumpidos a colaListos
-    for (CPU cpu : cpus) {
-        if (cpu.estaOcupada()) {
-            Proceso procesoMasCorto = colaListos.obtenerSJF();
-            Proceso procesoActual = cpu.getProcesoActual();
-
-            if (procesoMasCorto != null && procesoActual != null) {
-                int restanteActual = procesoActual.getInstrucciones() - procesoActual.getPC();
-                int restanteNuevo = procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC();
-
-                if (restanteNuevo < restanteActual) {
-                    System.out.println("⚠️ SRT: Interrumpiendo " + procesoActual.getNombre() + " en CPU " + cpu.getIdCPU() + " por " + procesoMasCorto.getNombre());
-
-                    cpu.interrumpirProceso();
-
-                    // 📌 Asegurar que el proceso interrumpido regresa a la cola de listos
-                    procesoActual.setEstado(PCB.Estado.READY);
-                    colaListos.agregar(procesoActual);
-                    System.out.println("✅ Proceso " + procesoActual.getNombre() + " agregado nuevamente a la cola de listos.");
-
-                    // 📌 Asignar el nuevo proceso más corto a la CPU
-                    cpu.asignarProceso(procesoMasCorto);
-                }
-            }
-        }
-    }
-
-    // 📌 Reasignar procesos interrumpidos cuando un CPU queda libre
-    for (CPU cpu : cpus) {
-        if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-            Proceso siguienteProceso = colaListos.obtenerSJF();
-            if (siguienteProceso != null) {
-                cpu.asignarProceso(siguienteProceso);
-                System.out.println("🔄 CPU " + cpu.getIdCPU() + " retomando ejecución de " + siguienteProceso.getNombre());
-            }
-        }
-    }
-}
-    // 📌 Nuevo método para asignar procesos a CPUs libres después de una interrupción
-    private void asignarProcesosLibres() {
+    // SJF: asigna el proceso con el menor tiempo restante a cada CPU libre
+    private void planificarSJF() {
+        // NOTA: En tu código original creabas un Thread. 
+        // Aquí lo simplificamos para que sea la hebra planificar() la que haga todo.
         for (CPU cpu : cpus) {
             if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
                 Proceso procesoMasCorto = colaListos.obtenerSJF();
                 if (procesoMasCorto != null) {
                     cpu.asignarProceso(procesoMasCorto);
-                    System.out.println("🔄 CPU " + cpu.getIdCPU() + " retomando " + procesoMasCorto.getNombre());
                 }
             }
         }
     }
-    
-    // HRRN: asigna el proceso con mayor ratio de respuesta: (tiempoEspera + tiempoServicio) / tiempoServicio.
+
+    // Round Robin: aquí solo asignamos procesos a CPUs libres;
+    // la expulsión la hará el hilo de interrupciones (iniciarHiloInterrupciones()).
+    private void planificarRoundRobin() {
+        for (CPU cpu : cpus) {
+            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+                Proceso proceso = colaListos.remover();
+                if (proceso != null) {
+                    cpu.asignarProceso(proceso);
+                }
+            }
+        }
+    }
+
+    // SRT: versión expulsiva de SJF. 
+    private void planificarSRT() {
+        // Asignar procesos a CPUs libres con la misma lógica SJF
+        for (CPU cpu : cpus) {
+            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+                Proceso procesoMasCorto = colaListos.obtenerSJF();
+                if (procesoMasCorto != null) {
+                    cpu.asignarProceso(procesoMasCorto);
+                }
+            }
+        }
+        // Aquí podríamos verificar si hay que expulsar procesos,
+        // pero lo hacemos en el hilo de interrupciones también.
+    }
+
+    // HRRN: asigna el proceso con mayor ratio (tiempoEspera + tiempoServicio)/tiempoServicio
     private void planificarHRRN() {
         for (CPU cpu : cpus) {
             if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
@@ -377,8 +310,11 @@ public class Planificador {
             }
         }
     }
-    
-    // Método auxiliar para HRRN: calcula el ratio y retorna el proceso con mayor ratio.
+
+    // ---------------------------------------------------------------------------------
+    // Métodos auxiliares de planificación
+    // ---------------------------------------------------------------------------------
+
     private Proceso obtenerHRRN() {
         Proceso[] procesos = colaListos.obtenerTodosProcesos();
         if (procesos.length == 0) return null;
@@ -401,8 +337,7 @@ public class Planificador {
         }
         return mejor;
     }
-    
-    // Método auxiliar para SRT: encuentra el proceso con el menor tiempo restante en la cola.
+
     private Proceso findShortestJobInQueue() {
         Proceso[] procesos = colaListos.obtenerTodosProcesos();
         if (procesos.length == 0) return null;
@@ -417,29 +352,38 @@ public class Planificador {
         }
         return masCorto;
     }
-    
-    // Hilo que, cada cierto tiempo (quantum * duracionCiclo), interrumpe procesos en Round Robin y SRT.
+
+    // ---------------------------------------------------------------------------------
+    // Hilo de interrupciones (Round Robin y SRT)
+    // ---------------------------------------------------------------------------------
     private void iniciarHiloInterrupciones() {
         new Thread(() -> {
             while (true) {
                 try {
+                    // Dormir el tiempo de quantum * duracionCiclo
                     Thread.sleep(quantum * duracionCiclo);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
                 try {
                     semaforoAsignacion.acquire();
-                    
-                    // Para Round Robin: interrumpir todos los procesos en CPU
+
+                    // ROUND ROBIN: se interrumpen todos los procesos en CPU
                     if (algoritmo == Algoritmo.ROUND_ROBIN) {
                         for (CPU cpu : cpus) {
                             if (cpu.estaOcupada()) {
+                                Proceso p = cpu.getProcesoActual();
                                 cpu.interrumpirProceso();
+                                // Si no ha terminado, regresa a la cola
+                                if (p != null && p.getEstado() != PCB.Estado.FINISHED) {
+                                    p.setEstado(PCB.Estado.READY);
+                                    colaListos.agregar(p);
+                                }
                             }
                         }
                     }
-                    
-                    // Para SRT: si existe un proceso en la cola con menor tiempo restante que el que se está ejecutando, se fuerza la preempción.
+
+                    // SRT: si hay un proceso más corto en la cola, interrumpir el actual
                     if (algoritmo == Algoritmo.SRT) {
                         Proceso masCorto = findShortestJobInQueue();
                         if (masCorto != null) {
@@ -451,12 +395,15 @@ public class Planificador {
                                         int colaRestante = masCorto.getInstrucciones() - masCorto.getPC();
                                         if (colaRestante < actualRestante) {
                                             cpu.interrumpirProceso();
+                                            actual.setEstado(PCB.Estado.READY);
+                                            colaListos.agregar(actual);
                                         }
                                     }
                                 }
                             }
                         }
                     }
+
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } finally {
@@ -465,35 +412,13 @@ public class Planificador {
             }
         }).start();
     }
-    
+
+    // ---------------------------------------------------------------------------------
+    // Método para actualizar el tiempo global (opcional)
+    // ---------------------------------------------------------------------------------
     public void actualizarTiempoGlobal(int tiempo) {
-    // Verificar si algún proceso en ejecución debe ser interrumpido (SRT, RR)
-    if (algoritmo == Algoritmo.SRT || algoritmo == Algoritmo.ROUND_ROBIN) {
-        verificarInterrupciones();
+        // Si deseas hacer alguna lógica adicional por cada tick, hazlo aquí
+        // (Por ahora, no hacemos nada específico para Round Robin / SRT, 
+        //  ya que lo maneja iniciarHiloInterrupciones()).
     }
 }
-
-// Método para verificar si hay procesos que deben ser interrumpidos
-private void verificarInterrupciones() {
-    for (CPU cpu : cpus) {
-        if (cpu.estaOcupada()) {
-            Proceso procesoActual = cpu.getProcesoActual();
-            Proceso procesoMasCorto = colaListos.obtenerSJF();
-
-            if (algoritmo == Algoritmo.SRT && procesoMasCorto != null) {
-                int restanteActual = procesoActual.getInstrucciones() - procesoActual.getPC();
-                int restanteNuevo = procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC();
-
-                if (restanteNuevo < restanteActual) {
-                    System.out.println("⚠️ SRT: Interrumpiendo " + procesoActual.getNombre() + " por " + procesoMasCorto.getNombre());
-                    cpu.interrumpirProceso();
-                    colaListos.agregar(procesoActual);
-                    cpu.asignarProceso(procesoMasCorto);
-                }
-            }
-        }
-    }
-}
-    
-}
-

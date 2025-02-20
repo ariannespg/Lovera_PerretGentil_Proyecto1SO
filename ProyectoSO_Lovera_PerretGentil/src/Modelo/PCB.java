@@ -1,22 +1,16 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Modelo;
 
 public class PCB {
-    // Enum para representar el estado del proceso
     public enum Estado {
         READY, RUNNING, BLOCKED, FINISHED
     }
     
     private int processId;
     private String nombreProceso;
-    private int programCounter; // PC
-    private int mar;            // Memory Address Register
+    private int programCounter;
+    private int mar;
     private Estado estado;
     
-    // Constructor
     public PCB(int processId, String nombreProceso) {
         this.processId = processId;
         this.nombreProceso = nombreProceso;
@@ -25,7 +19,6 @@ public class PCB {
         this.estado = Estado.READY;
     }
     
-    // Getters y Setters
     public int getProcessId() {
         return processId;
     }
@@ -58,8 +51,6 @@ public class PCB {
         this.estado = estado;
     }
     
-    // Método para simular la ejecución de una instrucción
-    // Incrementa tanto el PC como el MAR en 1
     public void incrementarPC() {
         programCounter++;
         mar++;

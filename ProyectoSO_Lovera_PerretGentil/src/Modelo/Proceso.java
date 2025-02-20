@@ -19,9 +19,19 @@ public class Proceso {
 
     // Para HRRN
     private long arrivalTime; // marca de tiempo cuando entra a READY
+    
+    // NUEVO: bandera para identificar procesos del sistema (SO) vs. usuario
+    private boolean esSistema;
 
+    // Constructor para procesos de usuario (por defecto, esSistema = false)
     public Proceso(String nombre, int instrucciones, boolean esCpuBound, 
                    int ciclosParaExcepcion, int ciclosAtencionExcepcion) {
+        this(nombre, instrucciones, esCpuBound, ciclosParaExcepcion, ciclosAtencionExcepcion, false);
+    }
+    
+    // Constructor extendido para especificar si es un proceso de sistema
+    public Proceso(String nombre, int instrucciones, boolean esCpuBound, 
+                   int ciclosParaExcepcion, int ciclosAtencionExcepcion, boolean esSistema) {
         this.id = contador++;
         this.nombre = nombre;
         this.instrucciones = instrucciones;
@@ -35,32 +45,26 @@ public class Proceso {
         }
         this.ciclosRestantesBloqueado = 0;
         this.pcb = new PCB(this.id, this.nombre);
-
-        // Por defecto, arrivalTime = 0; se setea en Planificador cuando se ingresa a la cola
         this.arrivalTime = 0;
+        this.esSistema = esSistema;
     }
-
-    // Simular la ejecución de un ciclo
+    
+    // Métodos de ejecución y excepciones (sin cambios)
     public void ejecutarCiclo() {
-    if (pcb.getEstado() == PCB.Estado.RUNNING) {
-        pcb.incrementarPC();
-        
-        // 📌 Si el proceso es I/O-bound y ha alcanzado los ciclos requeridos, se bloquea
-        if (!esCpuBound && pcb.getProgramCounter() % ciclosParaExcepcion == 0 && pcb.getProgramCounter() > 0) {
-            setEstado(PCB.Estado.BLOCKED);
-            ciclosRestantesBloqueado = ciclosAtencionExcepcion; // Se bloquea por este tiempo
-            System.out.println("🔴 Proceso " + nombre + " bloqueado por I/O.");
-        }
-
-        // Si se ha ejecutado todas las instrucciones, finalizar
-        if (pcb.getProgramCounter() >= instrucciones) {
-            setEstado(PCB.Estado.FINISHED);
-            System.out.println("✅ Proceso " + nombre + " ha terminado.");
+        if (pcb.getEstado() == PCB.Estado.RUNNING) {
+            pcb.incrementarPC();
+            if (!esCpuBound && pcb.getProgramCounter() % ciclosParaExcepcion == 0 && pcb.getProgramCounter() > 0) {
+                setEstado(PCB.Estado.BLOCKED);
+                ciclosRestantesBloqueado = ciclosAtencionExcepcion;
+                System.out.println("🔴 Proceso " + nombre + " bloqueado por I/O.");
+            }
+            if (pcb.getProgramCounter() >= instrucciones) {
+                setEstado(PCB.Estado.FINISHED);
+                System.out.println("✅ Proceso " + nombre + " ha terminado.");
+            }
         }
     }
-}
 
-    // Simula la resolución de una excepción
     public void resolverExcepcion() {
         try {
             Thread.sleep(ciclosAtencionExcepcion * 1000L);
@@ -69,7 +73,7 @@ public class Proceso {
         }
         pcb.setEstado(PCB.Estado.READY);
     }
-
+    
     // Getters y setters
     public int getId() {
         return id;
@@ -123,7 +127,6 @@ public class Proceso {
         return ciclosAtencionExcepcion;
     }
 
-    // Para HRRN
     public long getArrivalTime() {
         return arrivalTime;
     }
@@ -131,12 +134,22 @@ public class Proceso {
     public void setArrivalTime(long arrivalTime) {
         this.arrivalTime = arrivalTime;
     }
+    
+    // NUEVO: Getter y setter para esSistema
+    public boolean isEsSistema() {
+        return esSistema;
+    }
+    
+    public void setEsSistema(boolean esSistema) {
+        this.esSistema = esSistema;
+    }
 
     @Override
     public String toString() {
         return "Proceso{" +
                 "id=" + id +
                 ", nombre='" + nombre + '\'' +
+                ", tipo=" + (esSistema ? "SO" : "Usuario") +
                 ", estado=" + pcb.getEstado() +
                 ", PC=" + pcb.getProgramCounter() +
                 ", MAR=" + pcb.getMar() +

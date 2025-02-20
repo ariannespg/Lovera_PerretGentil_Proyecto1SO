@@ -4,6 +4,7 @@
  */
 package proyectoso_lovera_perretgentil;
 
+import Config.ConfigManager;
 import Config.Configuracion;
 import Interfaces.InterfazSimulador;
 import Modelo.Planificador;
@@ -11,20 +12,37 @@ import Modelo.Planificador.Algoritmo;
 import Modelo.RelojGlobal;
 import javax.swing.SwingUtilities;
 
-public class main {
+public class Main {
     public static void main(String[] args) {
-        Configuracion configuracion = new Configuracion();
-        int numCPUs = configuracion.getNumProcesadores();
+    Configuracion configTemp = ConfigManager.cargarConfiguracion("config.json");
+    if (configTemp == null) {
+        configTemp = new Configuracion();
+    }
+    final Configuracion configuracion = configTemp; // final o efectivamente final
 
-        Planificador planificador = new Planificador(numCPUs, Planificador.Algoritmo.FCFS, configuracion.getDuracionCiclo());
-        RelojGlobal reloj = new RelojGlobal(planificador, null); // Asegurar que el reloj tiene el planificador
+    System.out.println("Ruta absoluta: " + new java.io.File("config.json").getAbsolutePath());
 
-        SwingUtilities.invokeLater(() -> {
-            InterfazSimulador ventana = new InterfazSimulador(planificador, configuracion);
-            reloj.iniciarReloj(); // 📌 Iniciar el reloj global
-            ventana.setVisible(true);
-        });
+    int numCPUs = configuracion.getNumProcesadores();
+    Planificador planificador = new Planificador(
+        numCPUs,
+        Planificador.Algoritmo.FCFS,
+        configuracion.getDuracionCiclo()
+    );
 
-        reloj.start(); // 📌 Iniciar el hilo del reloj
+    RelojGlobal reloj = new RelojGlobal(planificador, null);
+
+    SwingUtilities.invokeLater(() -> {
+        InterfazSimulador ventana = new InterfazSimulador(planificador, configuracion);
+        reloj.iniciarReloj();
+        ventana.setVisible(true);
+    });
+
+    reloj.start();
+
+    // Agregamos un shutdown hook para guardar la config
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        ConfigManager.guardarConfiguracion(configuracion, "config.json");
+        System.out.println("Configuración guardada.");
+    }));
 }
 }
