@@ -232,16 +232,29 @@ public class Planificador {
     }
     
     // SJF: asigna el proceso con el menor tiempo restante (instrucciones - PC).
-    private void planificarSJF() {
-        for (CPU cpu : cpus) {
-            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-                Proceso p = colaListos.obtenerSJF();
-                if (p != null) {
-                    cpu.asignarProceso(p);
+    public void planificarSJF() {
+    new Thread(() -> {
+        try {
+            semaforoAsignacion.acquire(); // Bloquear acceso a la cola de listos
+            
+            // 📌 Asignar el proceso más corto a cada CPU libre
+            for (CPU cpu : cpus) {
+                if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+                    Proceso procesoMasCorto = colaListos.obtenerSJF();
+                    if (procesoMasCorto != null) {
+                        cpu.asignarProceso(procesoMasCorto);
+                        System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + procesoMasCorto.getNombre() + " (Tiempo restante: " + (procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC()) + ")");
+                    }
                 }
             }
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaforoAsignacion.release();
         }
-    }
+    }).start(); // 📌 Se ejecuta en un nuevo hilo para evitar bloquear la interfaz
+}
     
     // Round Robin: similar a FCFS, pero se interrumpe cada 'quantum' ciclos (ver hilo de interrupciones).
     private void planificarRoundRobin() {

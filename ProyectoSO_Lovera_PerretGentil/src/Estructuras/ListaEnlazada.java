@@ -84,25 +84,23 @@ public class ListaEnlazada {
 
     // 📌 Si el proceso más corto está en `head`, eliminarlo con `remover()`
     if (menorNodo == head) {
-        return remover(); // ✅ Remueve y retorna el primer nodo
+        return remover();
     }
 
-    // 📌 Si el proceso más corto está en el medio de la lista
+    // 📌 Si el proceso más corto está en el medio o al final de la lista, eliminarlo correctamente
     if (previoMenor != null) {
         previoMenor.siguiente = menorNodo.siguiente;
     }
 
-    // 📌 Si el proceso más corto era el último, actualizar `tail`
     if (menorNodo == tail) {
         tail = previoMenor;
     }
 
     Proceso procesoSeleccionado = menorNodo.proceso;
+    menorNodo.siguiente = null; // 📌 Eliminar referencia para evitar errores
 
-    // 📌 Asegurar que el nodo eliminado no siga apuntando a la lista
-    menorNodo.siguiente = null;
-
-    return procesoSeleccionado; // ✅ Ahora se elimina correctamente de `colaListos`
+    System.out.println("📌 Proceso obtenido de SJF: " + procesoSeleccionado.getNombre() + " (Tiempo restante: " + tiempoMenor + ")");
+    return procesoSeleccionado;
 }
     
     // Retorna un arreglo con los nombres y estados de los procesos (para mostrar en GUI)
