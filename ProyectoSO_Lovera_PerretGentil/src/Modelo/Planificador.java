@@ -149,36 +149,37 @@ public class Planificador {
     
     // Hilo que maneja los procesos bloqueados (disminuye los ciclos de bloqueo y, al terminar, los retorna a READY)
     private void manejarProcesosBloqueados() {
-        while (true) {
-            try {
-                semaforoAsignacion.acquire();
-                Proceso proceso = colaBloqueados.obtenerPrimero();
-                while (proceso != null) {
-                    if (proceso.getCiclosRestantesBloqueado() > 0) {
-                        proceso.setCiclosRestantesBloqueado(proceso.getCiclosRestantesBloqueado() - 1);
-                    }
-                    if (proceso.getCiclosRestantesBloqueado() == 0) {
-                        proceso.setEstado(PCB.Estado.READY);
-                        proceso.setArrivalTime(System.currentTimeMillis());
-                        colaListos.agregar(proceso);
-                        colaBloqueados.removerProceso(proceso);
-                        System.out.println("Proceso " + proceso.getNombre() + " salió de bloqueado y pasó a READY.");
-                    }
-                    proceso = colaBloqueados.obtenerPrimero();
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } finally {
-                semaforoAsignacion.release();
-            }
+    while (true) {
+        try {
+            semaforoAsignacion.acquire();
+            Proceso[] procesos = colaBloqueados.obtenerTodosProcesos();
             
-            try {
-                Thread.sleep(1000); // Se chequea cada segundo
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            for (Proceso proceso : procesos) {
+                if (proceso.getCiclosRestantesBloqueado() > 0) {
+                    proceso.setCiclosRestantesBloqueado(proceso.getCiclosRestantesBloqueado() - 1);
+                }
+
+                if (proceso.getCiclosRestantesBloqueado() == 0) {
+                    proceso.setEstado(PCB.Estado.READY);
+                    colaListos.agregar(proceso);
+                    colaBloqueados.removerProceso(proceso);
+                    System.out.println("Proceso " + proceso.getNombre() + " ha salido de bloqueado y pasó a READY.");
+                }
             }
+
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            semaforoAsignacion.release();
+        }
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
+}
     
     // Hilo principal de planificación: selecciona el proceso a asignar según la política elegida
     private void planificar() {
@@ -251,15 +252,30 @@ public class Planificador {
     
     // SRT: similar a SJF, pero con preempción. La expulsión se maneja en el hilo de interrupciones.
     private void planificarSRT() {
-        for (CPU cpu : cpus) {
-            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-                Proceso p = colaListos.obtenerSJF();
-                if (p != null) {
-                    cpu.asignarProceso(p);
+    for (CPU cpu : cpus) {
+        if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+            Proceso procesoMasCorto = colaListos.obtenerSJF();
+            if (procesoMasCorto != null) {
+                cpu.asignarProceso(procesoMasCorto);
+            }
+        } else {
+            // Si hay un proceso más corto en la cola, interrumpimos el actual
+            Proceso procesoMasCorto = colaListos.obtenerSJF();
+            Proceso procesoActual = cpu.getProcesoActual();
+
+            if (procesoMasCorto != null && procesoActual != null) {
+                int restanteActual = procesoActual.getInstrucciones() - procesoActual.getPC();
+                int restanteNuevo = procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC();
+
+                if (restanteNuevo < restanteActual) {
+                    cpu.interrumpirProceso();
+                    colaListos.agregar(procesoActual); // Devuelve el proceso interrumpido a la cola
+                    cpu.asignarProceso(procesoMasCorto);
                 }
             }
         }
     }
+}
     
     // HRRN: asigna el proceso con mayor ratio de respuesta: (tiempoEspera + tiempoServicio) / tiempoServicio.
     private void planificarHRRN() {

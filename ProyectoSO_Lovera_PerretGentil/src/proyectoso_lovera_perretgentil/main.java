@@ -10,7 +10,7 @@ import Modelo.Planificador;
 import Modelo.Planificador.Algoritmo;
 import javax.swing.SwingUtilities;
 
-public class Main {
+public class main {
     public static void main(String[] args) {
         // Crear la configuración (puedes cargarla de un JSON, si lo deseas)
         Configuracion configuracion = new Configuracion();
