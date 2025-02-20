@@ -97,17 +97,20 @@ public class Planificador {
 
     // Agrega un proceso a la cola de listos
     public void agregarProceso(Proceso proceso) {
-        try {
-            semaforoAsignacion.acquire();
-            proceso.setArrivalTime(System.currentTimeMillis());
-            colaListos.agregar(proceso);
-            System.out.println("Proceso " + proceso.getNombre() + " agregado a la cola de listos.");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } finally {
-            semaforoAsignacion.release();
-        }
+    try {
+        semaforoAsignacion.acquire();
+        proceso.setEstado(PCB.Estado.READY);
+        colaListos.agregar(proceso);
+
+        // 📌 Verificar si el proceso realmente se agregó
+        System.out.println("✅ Proceso " + proceso.getNombre() + " agregado a la cola de listos.");
+
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    } finally {
+        semaforoAsignacion.release();
     }
+}
     
     // Método para agregar un proceso a la cola de bloqueados
     public void agregarBloqueado(Proceso proceso) {
@@ -163,7 +166,7 @@ public class Planificador {
                     proceso.setEstado(PCB.Estado.READY);
                     colaListos.agregar(proceso);
                     colaBloqueados.removerProceso(proceso);
-                    System.out.println("Proceso " + proceso.getNombre() + " ha salido de bloqueado y pasó a READY.");
+                    System.out.println("🔵 Proceso " + proceso.getNombre() + " ha salido de bloqueado y pasó a READY.");
                 }
             }
 
@@ -252,14 +255,20 @@ public class Planificador {
     
     // SRT: similar a SJF, pero con preempción. La expulsión se maneja en el hilo de interrupciones.
     private void planificarSRT() {
+    // 📌 Asignar procesos a CPUs libres
     for (CPU cpu : cpus) {
         if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
             Proceso procesoMasCorto = colaListos.obtenerSJF();
             if (procesoMasCorto != null) {
                 cpu.asignarProceso(procesoMasCorto);
+                System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + procesoMasCorto.getNombre());
             }
-        } else {
-            // Si hay un proceso más corto en la cola, interrumpimos el actual
+        }
+    }
+
+    // 📌 Verificar interrupciones y agregar procesos interrumpidos a colaListos
+    for (CPU cpu : cpus) {
+        if (cpu.estaOcupada()) {
             Proceso procesoMasCorto = colaListos.obtenerSJF();
             Proceso procesoActual = cpu.getProcesoActual();
 
@@ -268,14 +277,45 @@ public class Planificador {
                 int restanteNuevo = procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC();
 
                 if (restanteNuevo < restanteActual) {
+                    System.out.println("⚠️ SRT: Interrumpiendo " + procesoActual.getNombre() + " en CPU " + cpu.getIdCPU() + " por " + procesoMasCorto.getNombre());
+
                     cpu.interrumpirProceso();
-                    colaListos.agregar(procesoActual); // Devuelve el proceso interrumpido a la cola
+
+                    // 📌 Asegurar que el proceso interrumpido regresa a la cola de listos
+                    procesoActual.setEstado(PCB.Estado.READY);
+                    colaListos.agregar(procesoActual);
+                    System.out.println("✅ Proceso " + procesoActual.getNombre() + " agregado nuevamente a la cola de listos.");
+
+                    // 📌 Asignar el nuevo proceso más corto a la CPU
                     cpu.asignarProceso(procesoMasCorto);
                 }
             }
         }
     }
+
+    // 📌 Reasignar procesos interrumpidos cuando un CPU queda libre
+    for (CPU cpu : cpus) {
+        if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+            Proceso siguienteProceso = colaListos.obtenerSJF();
+            if (siguienteProceso != null) {
+                cpu.asignarProceso(siguienteProceso);
+                System.out.println("🔄 CPU " + cpu.getIdCPU() + " retomando ejecución de " + siguienteProceso.getNombre());
+            }
+        }
+    }
 }
+    // 📌 Nuevo método para asignar procesos a CPUs libres después de una interrupción
+    private void asignarProcesosLibres() {
+        for (CPU cpu : cpus) {
+            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+                Proceso procesoMasCorto = colaListos.obtenerSJF();
+                if (procesoMasCorto != null) {
+                    cpu.asignarProceso(procesoMasCorto);
+                    System.out.println("🔄 CPU " + cpu.getIdCPU() + " retomando " + procesoMasCorto.getNombre());
+                }
+            }
+        }
+    }
     
     // HRRN: asigna el proceso con mayor ratio de respuesta: (tiempoEspera + tiempoServicio) / tiempoServicio.
     private void planificarHRRN() {
@@ -376,5 +416,35 @@ public class Planificador {
             }
         }).start();
     }
+    
+    public void actualizarTiempoGlobal(int tiempo) {
+    // Verificar si algún proceso en ejecución debe ser interrumpido (SRT, RR)
+    if (algoritmo == Algoritmo.SRT || algoritmo == Algoritmo.ROUND_ROBIN) {
+        verificarInterrupciones();
+    }
+}
+
+// Método para verificar si hay procesos que deben ser interrumpidos
+private void verificarInterrupciones() {
+    for (CPU cpu : cpus) {
+        if (cpu.estaOcupada()) {
+            Proceso procesoActual = cpu.getProcesoActual();
+            Proceso procesoMasCorto = colaListos.obtenerSJF();
+
+            if (algoritmo == Algoritmo.SRT && procesoMasCorto != null) {
+                int restanteActual = procesoActual.getInstrucciones() - procesoActual.getPC();
+                int restanteNuevo = procesoMasCorto.getInstrucciones() - procesoMasCorto.getPC();
+
+                if (restanteNuevo < restanteActual) {
+                    System.out.println("⚠️ SRT: Interrumpiendo " + procesoActual.getNombre() + " por " + procesoMasCorto.getNombre());
+                    cpu.interrumpirProceso();
+                    colaListos.agregar(procesoActual);
+                    cpu.asignarProceso(procesoMasCorto);
+                }
+            }
+        }
+    }
+}
+    
 }
 

@@ -4,6 +4,7 @@ import Config.Configuracion;
 import Modelo.Planificador;
 import Modelo.Planificador.Algoritmo;
 import Modelo.Proceso;
+import Modelo.RelojGlobal;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -20,6 +21,7 @@ public class InterfazSimulador extends JFrame {
     private JComboBox<Integer> selectorNumCPUs;
     private final JButton btnAgregarProceso;
     private final JButton btnAplicarConfig;
+    private JLabel labelTiempoGlobal = new JLabel("Tiempo: 0");
 
     public InterfazSimulador(Planificador planificador, Configuracion configuracion) {
         this.planificador = planificador;
@@ -75,6 +77,7 @@ public class InterfazSimulador extends JFrame {
             planificador.configurarCPUs(numCPUs);
             actualizarPanelCPUs();
         });
+        
 
         btnAgregarProceso = new JButton("Agregar Proceso");
         btnAgregarProceso.addActionListener(e -> agregarProceso());
@@ -85,6 +88,22 @@ public class InterfazSimulador extends JFrame {
         panelControles.add(selectorNumCPUs);
         panelControles.add(btnAplicarConfig);
         panelControles.add(btnAgregarProceso);
+        panelControles.add(new JLabel("Tiempo Global:"));
+        panelControles.add(labelTiempoGlobal);
+        // Slider para modificar la duración del ciclo
+        JSlider sliderDuracionCiclo = new JSlider(500, 5000, RelojGlobal.getDuracionCiclo());
+        sliderDuracionCiclo.setMajorTickSpacing(500);
+        sliderDuracionCiclo.setPaintTicks(true);
+        sliderDuracionCiclo.setPaintLabels(true);
+        sliderDuracionCiclo.addChangeListener(e -> {
+            int nuevoValor = sliderDuracionCiclo.getValue();
+            RelojGlobal.setDuracionCiclo(nuevoValor);
+        });
+
+        
+        // Agregar el slider al panel de controles
+        panelControles.add(new JLabel("Duración del Ciclo (ms):"));
+        panelControles.add(sliderDuracionCiclo);
 
         // Panel con tablas de listos y bloqueados
         JPanel panelTablas = new JPanel(new GridLayout(2, 1));
@@ -122,76 +141,96 @@ public class InterfazSimulador extends JFrame {
     }
 
     private void agregarProceso() {
-        JPanel panel = new JPanel(new GridLayout(0, 2));
+    JPanel panel = new JPanel(new GridLayout(0, 2));
 
-        JTextField nombreField = new JTextField();
-        JTextField instruccionesField = new JTextField();
-        JCheckBox cpuBoundCheck = new JCheckBox("CPU Bound (marcar si es CPU bound)");
-        JTextField ciclosExcepcionField = new JTextField();
-        JTextField ciclosAtencionField = new JTextField();
+    JTextField nombreField = new JTextField();
+    JTextField instruccionesField = new JTextField();
+    JCheckBox cpuBoundCheck = new JCheckBox("CPU Bound (marcar si es CPU bound)");
+    JTextField ciclosExcepcionField = new JTextField();
+    JTextField ciclosAtencionField = new JTextField();
 
-        panel.add(new JLabel("Nombre del proceso:"));
-        panel.add(nombreField);
-        panel.add(new JLabel("Cantidad de instrucciones:"));
-        panel.add(instruccionesField);
-        panel.add(new JLabel("Tipo de proceso:"));
-        panel.add(cpuBoundCheck);
-        panel.add(new JLabel("Ciclos para excepción (I/O bound):"));
-        panel.add(ciclosExcepcionField);
-        panel.add(new JLabel("Ciclos atención excepción (I/O bound):"));
-        panel.add(ciclosAtencionField);
+    panel.add(new JLabel("Nombre del proceso:"));
+    panel.add(nombreField);
+    panel.add(new JLabel("Cantidad de instrucciones:"));
+    panel.add(instruccionesField);
+    panel.add(new JLabel("Tipo de proceso:"));
+    panel.add(cpuBoundCheck);
+    panel.add(new JLabel("Ciclos para excepción (solo I/O bound):"));
+    panel.add(ciclosExcepcionField);
+    panel.add(new JLabel("Ciclos atención excepción (solo I/O bound):"));
+    panel.add(ciclosAtencionField);
 
-        int result = JOptionPane.showConfirmDialog(
-                this, panel, "Crear Proceso", 
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
-        );
-        
-        if (result == JOptionPane.OK_OPTION) {
-            try {
-                String nombre = nombreField.getText().trim();
-                int instrucciones = Integer.parseInt(instruccionesField.getText().trim());
-                boolean esCpuBound = cpuBoundCheck.isSelected();
-                int ciclosExcepcion = 0;
-                int ciclosAtencion = 0;
-                if (!esCpuBound) {
-                    ciclosExcepcion = Integer.parseInt(ciclosExcepcionField.getText().trim());
-                    ciclosAtencion = Integer.parseInt(ciclosAtencionField.getText().trim());
+    int result = JOptionPane.showConfirmDialog(
+            this, panel, "Crear Proceso", 
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
+    );
+
+    if (result == JOptionPane.OK_OPTION) {
+        try {
+            String nombre = nombreField.getText().trim();
+            int instrucciones = Integer.parseInt(instruccionesField.getText().trim());
+            boolean esCpuBound = cpuBoundCheck.isSelected();
+            int ciclosExcepcion = 0;
+            int ciclosAtencion = 0;
+
+            // 📌 Si el proceso es I/O-bound, debe recibir los valores correctos
+            if (!esCpuBound) {
+                if (ciclosExcepcionField.getText().trim().isEmpty() || ciclosAtencionField.getText().trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(
+                            this, 
+                            "Los ciclos de excepción y atención son obligatorios para I/O bound.", 
+                            "Error", 
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
                 }
-                Proceso proceso = new Proceso(
-                        nombre, 
-                        instrucciones, 
-                        esCpuBound, 
-                        ciclosExcepcion, 
-                        ciclosAtencion
-                );
-                planificador.agregarProceso(proceso);
-                System.out.println("📌 Se ha agregado: " + proceso);
-                actualizarListaProcesos();
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(
-                        this, 
-                        "Por favor, ingresa valores numéricos válidos.", 
-                        "Error", 
-                        JOptionPane.ERROR_MESSAGE
-                );
+                ciclosExcepcion = Integer.parseInt(ciclosExcepcionField.getText().trim());
+                ciclosAtencion = Integer.parseInt(ciclosAtencionField.getText().trim());
             }
+
+            // 📌 Crear el proceso y enviarlo al planificador
+            Proceso proceso = new Proceso(
+                    nombre, 
+                    instrucciones, 
+                    esCpuBound, 
+                    ciclosExcepcion, 
+                    ciclosAtencion
+            );
+            planificador.agregarProceso(proceso);
+            System.out.println("📌 Se ha agregado: " + proceso);
+            actualizarListaProcesos();
+
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(
+                    this, 
+                    "Por favor, ingresa valores numéricos válidos.", 
+                    "Error", 
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
+}
 
     private void actualizarInterfaz() {
-        while (true) {
-            actualizarListaProcesos();
-            actualizarListaBloqueados();
-            for (int i = 0; i < etiquetasCPU.length; i++) {
-                etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + planificador.getEstadoCPU(i));
-            }
-            try {
-                Thread.sleep(1000); // Actualiza cada segundo
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+    while (true) {
+        actualizarListaProcesos();
+        actualizarListaBloqueados();
+
+        // Actualizar el estado de las CPUs
+        for (int i = 0; i < etiquetasCPU.length; i++) {
+            etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + planificador.getEstadoCPU(i));
+        }
+
+        // 📌 Actualizar el tiempo global en la interfaz
+        actualizarTiempoGlobal(RelojGlobal.getTiempoActual());
+
+        try {
+            Thread.sleep(1000); // Actualizar cada segundo
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
+}
 
     private void actualizarListaProcesos() {
         modeloTablaListos.setRowCount(0);
@@ -215,5 +254,10 @@ public class InterfazSimulador extends JFrame {
                 proceso.getCiclosRestantesBloqueado()
             });
         }
+    }
+    
+    // Método para actualizar el tiempo global en la interfaz
+    public void actualizarTiempoGlobal(int tiempo) {
+        labelTiempoGlobal.setText("Tiempo: " + tiempo);
     }
 }

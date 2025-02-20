@@ -42,15 +42,23 @@ public class Proceso {
 
     // Simular la ejecución de un ciclo
     public void ejecutarCiclo() {
-        if (pcb.getEstado() == PCB.Estado.RUNNING) {
-            pcb.incrementarPC(); 
-            if (pcb.getProgramCounter() >= instrucciones) {
-                pcb.setEstado(PCB.Estado.FINISHED);
-            }
-            // Lógica de bloqueo (I/O) no detallada aquí, 
-            // puede usarse ciclosParaExcepcion para forzar un BLOCKED en cierto momento.
+    if (pcb.getEstado() == PCB.Estado.RUNNING) {
+        pcb.incrementarPC();
+        
+        // 📌 Si el proceso es I/O-bound y ha alcanzado los ciclos requeridos, se bloquea
+        if (!esCpuBound && pcb.getProgramCounter() % ciclosParaExcepcion == 0 && pcb.getProgramCounter() > 0) {
+            setEstado(PCB.Estado.BLOCKED);
+            ciclosRestantesBloqueado = ciclosAtencionExcepcion; // Se bloquea por este tiempo
+            System.out.println("🔴 Proceso " + nombre + " bloqueado por I/O.");
+        }
+
+        // Si se ha ejecutado todas las instrucciones, finalizar
+        if (pcb.getProgramCounter() >= instrucciones) {
+            setEstado(PCB.Estado.FINISHED);
+            System.out.println("✅ Proceso " + nombre + " ha terminado.");
         }
     }
+}
 
     // Simula la resolución de una excepción
     public void resolverExcepcion() {

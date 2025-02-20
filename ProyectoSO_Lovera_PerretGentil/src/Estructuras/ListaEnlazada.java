@@ -62,37 +62,48 @@ public class ListaEnlazada {
     // Obtener el proceso con menor cantidad de instrucciones restantes (para SJF)
     // Se asume que "tiempo restante" ~ (instrucciones totales - PC).
     public Proceso obtenerSJF() {
-        if (head == null) return null;
+    if (head == null) return null; // 📌 Lista vacía
 
-        Nodo menorNodo = head;
-        Nodo actual = head.siguiente;
-        Nodo previoMenor = null;
-        Nodo previo = head;
+    Nodo menorNodo = head;
+    Nodo actual = head.siguiente;
+    Nodo previoMenor = null;
+    Nodo previo = head;
 
-        // Calcula el tiempo restante del primer nodo
-        int tiempoMenor = menorNodo.proceso.getInstrucciones() - menorNodo.proceso.getPC();
+    int tiempoMenor = menorNodo.proceso.getInstrucciones() - menorNodo.proceso.getPC();
 
-        while (actual != null) {
-            int tiempoActual = actual.proceso.getInstrucciones() - actual.proceso.getPC();
-            if (tiempoActual < tiempoMenor) {
-                menorNodo = actual;
-                previoMenor = previo;
-                tiempoMenor = tiempoActual;
-            }
-            previo = actual;
-            actual = actual.siguiente;
+    while (actual != null) {
+        int tiempoActual = actual.proceso.getInstrucciones() - actual.proceso.getPC();
+        if (tiempoActual < tiempoMenor) {
+            menorNodo = actual;
+            previoMenor = previo;
+            tiempoMenor = tiempoActual;
         }
-
-        // Si el menor proceso no es el primero, ajustar enlaces
-        if (menorNodo != head) {
-            previoMenor.siguiente = menorNodo.siguiente;
-            if (menorNodo == tail) tail = previoMenor;
-            menorNodo.siguiente = head;
-            head = menorNodo;
-        }
-
-        return remover();
+        previo = actual;
+        actual = actual.siguiente;
     }
+
+    // 📌 Si el proceso más corto está en `head`, eliminarlo con `remover()`
+    if (menorNodo == head) {
+        return remover(); // ✅ Remueve y retorna el primer nodo
+    }
+
+    // 📌 Si el proceso más corto está en el medio de la lista
+    if (previoMenor != null) {
+        previoMenor.siguiente = menorNodo.siguiente;
+    }
+
+    // 📌 Si el proceso más corto era el último, actualizar `tail`
+    if (menorNodo == tail) {
+        tail = previoMenor;
+    }
+
+    Proceso procesoSeleccionado = menorNodo.proceso;
+
+    // 📌 Asegurar que el nodo eliminado no siga apuntando a la lista
+    menorNodo.siguiente = null;
+
+    return procesoSeleccionado; // ✅ Ahora se elimina correctamente de `colaListos`
+}
     
     // Retorna un arreglo con los nombres y estados de los procesos (para mostrar en GUI)
     public String[] obtenerListaProcesos() {

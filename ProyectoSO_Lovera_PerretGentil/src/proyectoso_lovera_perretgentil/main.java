@@ -8,27 +8,23 @@ import Config.Configuracion;
 import Interfaces.InterfazSimulador;
 import Modelo.Planificador;
 import Modelo.Planificador.Algoritmo;
+import Modelo.RelojGlobal;
 import javax.swing.SwingUtilities;
 
 public class main {
     public static void main(String[] args) {
-        // Crear la configuración (puedes cargarla de un JSON, si lo deseas)
         Configuracion configuracion = new Configuracion();
-        int numCPUs = configuracion.getNumProcesadores(); // 2 por defecto
-        
-        // Crear el planificador con FCFS por defecto (puedes cambiarlo)
-        Planificador planificador = new Planificador(
-                numCPUs,
-                Algoritmo.FCFS,
-                configuracion.getDuracionCiclo()
-        );
+        int numCPUs = configuracion.getNumProcesadores();
 
-        // Lanzar la interfaz gráfica
+        Planificador planificador = new Planificador(numCPUs, Planificador.Algoritmo.FCFS, configuracion.getDuracionCiclo());
+        RelojGlobal reloj = new RelojGlobal(planificador, null); // Asegurar que el reloj tiene el planificador
+
         SwingUtilities.invokeLater(() -> {
             InterfazSimulador ventana = new InterfazSimulador(planificador, configuracion);
+            reloj.iniciarReloj(); // 📌 Iniciar el reloj global
             ventana.setVisible(true);
         });
 
-        // El hilo planificador corre internamente en Planificador
-    }
+        reloj.start(); // 📌 Iniciar el hilo del reloj
+}
 }
