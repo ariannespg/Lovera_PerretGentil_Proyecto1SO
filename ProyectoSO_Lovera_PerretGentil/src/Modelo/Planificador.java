@@ -301,42 +301,51 @@ public class Planificador {
 
     // HRRN: asigna el proceso con mayor ratio (tiempoEspera + tiempoServicio)/tiempoServicio
     private void planificarHRRN() {
-        for (CPU cpu : cpus) {
-            if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
-                Proceso p = obtenerHRRN();
-                if (p != null) {
-                    cpu.asignarProceso(p);
-                }
+    for (CPU cpu : cpus) {
+        if (!cpu.estaOcupada() && !colaListos.estaVacia()) {
+            Proceso p = obtenerHRRN();
+            if (p != null) {
+                cpu.asignarProceso(p);
+                System.out.println("✅ CPU " + cpu.getIdCPU() + " ejecutando " + p.getNombre() + " (HRRN)");
             }
         }
     }
+}
 
     // ---------------------------------------------------------------------------------
     // Métodos auxiliares de planificación
     // ---------------------------------------------------------------------------------
 
     private Proceso obtenerHRRN() {
-        Proceso[] procesos = colaListos.obtenerTodosProcesos();
-        if (procesos.length == 0) return null;
-        
-        long now = System.currentTimeMillis();
-        Proceso mejor = null;
-        double mejorRatio = -1;
-        for (Proceso p : procesos) {
-            int servicioRestante = p.getInstrucciones() - p.getPC();
-            if (servicioRestante <= 0) servicioRestante = 1;
-            long espera = now - p.getArrivalTime();
-            double ratio = (espera + servicioRestante) / (double) servicioRestante;
-            if (ratio > mejorRatio) {
-                mejorRatio = ratio;
-                mejor = p;
-            }
+    Proceso[] procesos = colaListos.obtenerTodosProcesos();
+    if (procesos.length == 0) return null;
+
+    long now = System.currentTimeMillis(); // Obtener el tiempo actual
+    Proceso mejor = null;
+    double mejorRatio = -1;
+
+    for (Proceso p : procesos) {
+        long tiempoEspera = now - p.getArrivalTime();  // Tiempo de espera
+
+        int tiempoServicio = p.getInstrucciones() - p.getPC();
+        if (tiempoServicio <= 0) tiempoServicio = 1;  // Evitar división por cero
+
+        double ratio = (tiempoEspera + tiempoServicio) / (double) tiempoServicio;
+
+        // Seleccionar el proceso con el mejor ratio
+        if (ratio > mejorRatio) {
+            mejorRatio = ratio;
+            mejor = p;
         }
-        if (mejor != null) {
-            colaListos.removerProceso(mejor);
-        }
-        return mejor;
     }
+
+    if (mejor != null) {
+        colaListos.removerProceso(mejor);  // Eliminar de la cola
+        System.out.println("📌 Proceso seleccionado por HRRN: " + mejor.getNombre() + " (Ratio: " + mejorRatio + ")");
+    }
+
+    return mejor;
+}
 
     private Proceso findShortestJobInQueue() {
         Proceso[] procesos = colaListos.obtenerTodosProcesos();
@@ -421,4 +430,11 @@ public class Planificador {
         // (Por ahora, no hacemos nada específico para Round Robin / SRT, 
         //  ya que lo maneja iniciarHiloInterrupciones()).
     }
+    
+    public Proceso getProcesoEnCPU(int cpuIndex) {
+    if (cpuIndex < 0 || cpuIndex >= cpus.length) return null;
+    return cpus[cpuIndex].getProcesoActual();
+}
+    
+    
 }

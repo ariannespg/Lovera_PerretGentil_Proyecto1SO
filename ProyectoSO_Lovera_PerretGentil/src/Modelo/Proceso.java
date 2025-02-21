@@ -24,30 +24,33 @@ public class Proceso {
     private boolean esSistema;
 
     // Constructor para procesos de usuario (por defecto, esSistema = false)
+    // Constructor para procesos de usuario (por defecto, esSistema = false y tiempoLlegada = hora actual)
     public Proceso(String nombre, int instrucciones, boolean esCpuBound, 
                    int ciclosParaExcepcion, int ciclosAtencionExcepcion) {
-        this(nombre, instrucciones, esCpuBound, ciclosParaExcepcion, ciclosAtencionExcepcion, false);
+        this(nombre, instrucciones, esCpuBound, ciclosParaExcepcion, ciclosAtencionExcepcion, System.currentTimeMillis());
     }
     
     // Constructor extendido para especificar si es un proceso de sistema
     public Proceso(String nombre, int instrucciones, boolean esCpuBound, 
-                   int ciclosParaExcepcion, int ciclosAtencionExcepcion, boolean esSistema) {
-        this.id = contador++;
-        this.nombre = nombre;
-        this.instrucciones = instrucciones;
-        this.esCpuBound = esCpuBound;
-        if (!esCpuBound) {
-            this.ciclosParaExcepcion = ciclosParaExcepcion;
-            this.ciclosAtencionExcepcion = ciclosAtencionExcepcion;
-        } else {
-            this.ciclosParaExcepcion = 0;
-            this.ciclosAtencionExcepcion = 0;
-        }
-        this.ciclosRestantesBloqueado = 0;
-        this.pcb = new PCB(this.id, this.nombre);
-        this.arrivalTime = 0;
-        this.esSistema = esSistema;
+               int ciclosParaExcepcion, int ciclosAtencionExcepcion, long tiempoLlegada) {
+    this.id = contador++;
+    this.nombre = nombre;
+    this.instrucciones = instrucciones;
+    this.esCpuBound = esCpuBound;
+    if (!esCpuBound) {
+        this.ciclosParaExcepcion = ciclosParaExcepcion;
+        this.ciclosAtencionExcepcion = ciclosAtencionExcepcion;
+    } else {
+        this.ciclosParaExcepcion = 0;
+        this.ciclosAtencionExcepcion = 0;
     }
+    this.ciclosRestantesBloqueado = 0;
+    this.pcb = new PCB(this.id, this.nombre);
+
+    // 📌 Si el tiempo de llegada no se pasa explícitamente, usamos el tiempo actual
+    this.arrivalTime = tiempoLlegada == 0 ? System.currentTimeMillis() : tiempoLlegada;  // Usar tiempo actual si no se pasa el valor
+    this.esSistema = false;
+}
     
     // Métodos de ejecución y excepciones (sin cambios)
     public void ejecutarCiclo() {

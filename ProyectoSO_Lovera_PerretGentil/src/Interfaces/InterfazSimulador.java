@@ -182,97 +182,112 @@ public class InterfazSimulador extends JFrame {
     }
 
     private void agregarProceso() {
-        JPanel panel = new JPanel(new GridLayout(0, 2));
+    JPanel panel = new JPanel(new GridLayout(0, 2));
 
-        JTextField nombreField = new JTextField();
-        JTextField instruccionesField = new JTextField();
-        JCheckBox cpuBoundCheck = new JCheckBox("CPU Bound (marcar si es CPU bound)");
-        JTextField ciclosExcepcionField = new JTextField();
-        JTextField ciclosAtencionField = new JTextField();
+    JTextField nombreField = new JTextField();
+    JTextField instruccionesField = new JTextField();
+    JCheckBox cpuBoundCheck = new JCheckBox("CPU Bound (marcar si es CPU bound)");
+    JTextField ciclosExcepcionField = new JTextField();
+    JTextField ciclosAtencionField = new JTextField();
+    JTextField tiempoLlegadaField = new JTextField();  // Campo opcional de tiempo de llegada
 
-        panel.add(new JLabel("Nombre del proceso:"));
-        panel.add(nombreField);
-        panel.add(new JLabel("Cantidad de instrucciones:"));
-        panel.add(instruccionesField);
-        panel.add(new JLabel("Tipo de proceso:"));
-        panel.add(cpuBoundCheck);
-        panel.add(new JLabel("Ciclos para excepción (solo I/O bound):"));
-        panel.add(ciclosExcepcionField);
-        panel.add(new JLabel("Ciclos atención excepción (solo I/O bound):"));
-        panel.add(ciclosAtencionField);
+    panel.add(new JLabel("Nombre del proceso:"));
+    panel.add(nombreField);
+    panel.add(new JLabel("Cantidad de instrucciones:"));
+    panel.add(instruccionesField);
+    panel.add(new JLabel("Tipo de proceso:"));
+    panel.add(cpuBoundCheck);
+    panel.add(new JLabel("Ciclos para excepción (solo I/O bound):"));
+    panel.add(ciclosExcepcionField);
+    panel.add(new JLabel("Ciclos atención excepción (solo I/O bound):"));
+    panel.add(ciclosAtencionField);
+    panel.add(new JLabel("Tiempo de llegada (opcional):"));  // Etiqueta indicando que es opcional
+    panel.add(tiempoLlegadaField);
 
-        int result = JOptionPane.showConfirmDialog(
-                this, panel, "Crear Proceso", 
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
-        );
+    int result = JOptionPane.showConfirmDialog(
+            this, panel, "Crear Proceso", 
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE
+    );
 
-        if (result == JOptionPane.OK_OPTION) {
-            try {
-                String nombre = nombreField.getText().trim();
-                int instrucciones = Integer.parseInt(instruccionesField.getText().trim());
-                boolean esCpuBound = cpuBoundCheck.isSelected();
-                int ciclosExcepcion = 0;
-                int ciclosAtencion = 0;
+    if (result == JOptionPane.OK_OPTION) {
+        try {
+            String nombre = nombreField.getText().trim();
+            int instrucciones = Integer.parseInt(instruccionesField.getText().trim());
+            boolean esCpuBound = cpuBoundCheck.isSelected();
+            int ciclosExcepcion = 0;
+            int ciclosAtencion = 0;
+            long tiempoLlegada;
 
-                // Si el proceso es I/O-bound, debe recibir los valores correctos
-                if (!esCpuBound) {
-                    if (ciclosExcepcionField.getText().trim().isEmpty() ||
-                        ciclosAtencionField.getText().trim().isEmpty()) {
-                        JOptionPane.showMessageDialog(
-                                this, 
-                                "Los ciclos de excepción y atención son obligatorios para I/O bound.", 
-                                "Error", 
-                                JOptionPane.ERROR_MESSAGE
-                        );
-                        return;
-                    }
-                    ciclosExcepcion = Integer.parseInt(ciclosExcepcionField.getText().trim());
-                    ciclosAtencion = Integer.parseInt(ciclosAtencionField.getText().trim());
-                }
-
-                // Crear el proceso y enviarlo al planificador
-                Proceso proceso = new Proceso(
-                        nombre, 
-                        instrucciones, 
-                        esCpuBound, 
-                        ciclosExcepcion, 
-                        ciclosAtencion
-                );
-                planificador.agregarProceso(proceso);
-                System.out.println("Se ha agregado: " + proceso);
-                actualizarListaProcesos();
-
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(
-                        this, 
-                        "Por favor, ingresa valores numéricos válidos.", 
-                        "Error", 
-                        JOptionPane.ERROR_MESSAGE
-                );
+            // 📌 Si el campo está vacío, asignar el tiempo actual automáticamente
+            if (tiempoLlegadaField.getText().trim().isEmpty()) {
+                tiempoLlegada = System.currentTimeMillis();  // Tiempo actual
+            } else {
+                tiempoLlegada = Long.parseLong(tiempoLlegadaField.getText().trim());  // Valor ingresado por el usuario
             }
+
+            if (!esCpuBound) {
+                if (ciclosExcepcionField.getText().trim().isEmpty() ||
+                    ciclosAtencionField.getText().trim().isEmpty()) {
+                    JOptionPane.showMessageDialog(
+                            this, 
+                            "Los ciclos de excepción y atención son obligatorios para I/O bound.", 
+                            "Error", 
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                    return;
+                }
+                ciclosExcepcion = Integer.parseInt(ciclosExcepcionField.getText().trim());
+                ciclosAtencion = Integer.parseInt(ciclosAtencionField.getText().trim());
+            }
+
+            // 📌 Crear el proceso con el tiempo de llegada determinado
+            Proceso proceso = new Proceso(
+                    nombre, 
+                    instrucciones, 
+                    esCpuBound, 
+                    ciclosExcepcion, 
+                    ciclosAtencion,
+                    tiempoLlegada  // Tiempo automático o ingresado
+            );
+
+            planificador.agregarProceso(proceso);
+            System.out.println("📌 Se ha agregado: " + proceso);
+            actualizarListaProcesos();
+
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(
+                    this, 
+                    "Por favor, ingresa valores numéricos válidos.", 
+                    "Error", 
+                    JOptionPane.ERROR_MESSAGE
+            );
         }
     }
+}
 
     private void actualizarInterfaz() {
-        while (true) {
-            actualizarListaProcesos();
-            actualizarListaBloqueados();
+    while (true) {
+        actualizarListaProcesos();
+        actualizarListaBloqueados();
 
-            // Actualizar el estado de las CPUs
-            for (int i = 0; i < etiquetasCPU.length; i++) {
-                etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + planificador.getEstadoCPU(i));
-            }
+        // 📌 Actualizar el estado de las CPUs en la interfaz
+        for (int i = 0; i < etiquetasCPU.length; i++) {
+            etiquetasCPU[i].setText("CPU " + (i + 1) + ": " + planificador.getEstadoCPU(i));
+        }
 
-            // Actualizar el tiempo global en la interfaz
-            actualizarTiempoGlobal(RelojGlobal.getTiempoActual());
+        // 📌 Actualizar el tiempo global en la interfaz
+        actualizarTiempoGlobal(RelojGlobal.getTiempoActual());
 
-            try {
-                Thread.sleep(1000); // Actualizar cada segundo
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        // 📌 Asegurar que el PCB se actualice en tiempo real
+        actualizarPCB();
+
+        try {
+            Thread.sleep(1000); // 📌 Actualizar cada segundo
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
+}
 
     private void actualizarListaProcesos() {
         modeloTablaListos.setRowCount(0);
@@ -306,21 +321,48 @@ public class InterfazSimulador extends JFrame {
     }
     
     // Método para mostrar la información de los PCB con un formato más agradable
+    // Método para actualizar la información del PCB en la interfaz
     private void actualizarPCB() {
-        // Se asume que cada Proceso tiene un método getPCB() que devuelve su objeto PCB
         StringBuilder sb = new StringBuilder();
+
+        // 📌 Obtener procesos en la cola de listos
         for (Proceso proceso : planificador.getListaProcesos()) {
-            PCB pcb = proceso.getPcb(); // Ajusta si tu clase Proceso usa otro nombre de método
-            if (pcb != null) {
-                sb.append("ID: ").append(pcb.getProcessId()).append("\n")
+            PCB pcb = proceso.getPcb();
+            sb.append("ID: ").append(pcb.getProcessId()).append("\n")
+              .append("Nombre: ").append(pcb.getNombreProceso()).append("\n")
+              .append("Estado: ").append(pcb.getEstado()).append("\n")
+              .append("PC: ").append(pcb.getProgramCounter()).append("\n")
+              .append("MAR: ").append(pcb.getMar()).append("\n")
+              .append("------------------------------\n");
+        }
+
+        // 📌 Obtener procesos actualmente en ejecución en cada CPU
+        for (int i = 0; i < planificador.getNumCPUs(); i++) {
+            Proceso proceso = planificador.getProcesoEnCPU(i);
+            if (proceso != null) {
+                PCB pcb = proceso.getPcb();
+                 sb.append("ID: ").append(pcb.getProcessId()).append("\n")
                   .append("Nombre: ").append(pcb.getNombreProceso()).append("\n")
-                  .append("Estado: ").append(pcb.getEstado()).append("\n")
+                  .append("Estado: RUNNING\n")
                   .append("PC: ").append(pcb.getProgramCounter()).append("\n")
                   .append("MAR: ").append(pcb.getMar()).append("\n")
                   .append("------------------------------\n");
             }
         }
-        areaPCB.setText(sb.toString());
+        
+        for (Proceso proceso : planificador.getListaProcesosBloqueados()) {
+        PCB pcb = proceso.getPcb();
+        sb.append("ID: ").append(pcb.getProcessId()).append("\n")
+          .append("Nombre: ").append(pcb.getNombreProceso()).append("\n")
+          .append("Estado: BLOCKED\n")
+          .append("PC: ").append(pcb.getProgramCounter()).append("\n")
+          .append("MAR: ").append(pcb.getMar()).append("\n")
+          .append("------------------------------\n");
+    }
+
+    areaPCB.setText(sb.toString());
+
+        areaPCB.setText(sb.toString()); // 📌 Actualiza el PCB en la GUI
     }
 }
 
