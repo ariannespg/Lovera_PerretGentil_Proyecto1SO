@@ -5,6 +5,11 @@
 package Modelo;
 
 import Estructuras.ListaEnlazada;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.concurrent.Semaphore;
 
 public class Planificador {
@@ -14,6 +19,7 @@ public class Planificador {
     private Semaphore semaforoAsignacion;
     private Algoritmo algoritmo;
     private int duracionCiclo;
+    private ListaEnlazada procesosTerminados = new ListaEnlazada();
     
     // Quantum para Round Robin y SRT
     private int quantum = 5; 
@@ -208,7 +214,7 @@ public class Planificador {
     // Hilo principal de planificación: se ejecuta en bucle
     // ---------------------------------------------------------------------------------
 
-    private void planificar() {
+    public void planificar() {
         while (true) {
             try {
                 semaforoAsignacion.acquire();
@@ -435,6 +441,52 @@ public class Planificador {
     if (cpuIndex < 0 || cpuIndex >= cpus.length) return null;
     return cpus[cpuIndex].getProcesoActual();
 }
+    public void agregarProcesoTerminado(Proceso proceso) {
+    try {
+        semaforoAsignacion.acquire();
+        procesosTerminados.agregar(proceso);
+        System.out.println("📌 Proceso " + proceso.getNombre() + " ha sido registrado como TERMINADO.");
+    } catch (InterruptedException e) {
+        e.printStackTrace();
+    } finally {
+        semaforoAsignacion.release();
+    }
+}
     
+    public Proceso[] getListaProcesosTerminados() {
+    return procesosTerminados.obtenerTodosProcesos();
+}
     
+    public void guardarProcesosEnJSON(String rutaArchivo) {
+    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+    try (FileWriter writer = new FileWriter(rutaArchivo)) {
+        Proceso[] procesos = procesosTerminados.obtenerTodosProcesos(); // 📌 Obtener procesos terminados
+        writer.write(gson.toJson(procesos));  // 📌 Guardar en JSON
+        System.out.println("📌 Procesos terminados guardados en JSON exitosamente.");
+    } catch (IOException e) {
+        System.err.println("❌ Error al guardar los procesos en JSON: " + e.getMessage());
+    }
+}
+    
+    public void cargarProcesosDesdeJSON(String rutaArchivo) {
+    Gson gson = new Gson();
+
+    try (FileReader reader = new FileReader(rutaArchivo)) {
+        Proceso[] procesos = gson.fromJson(reader, Proceso[].class);
+        if (procesos != null) {
+            for (Proceso proceso : procesos) {
+                // 📌 Reiniciar los valores del proceso
+                proceso.setEstado(PCB.Estado.READY);  // 📌 Cambiar estado a READY
+                proceso.getPcb().setProgramCounter(0);  // 📌 Reiniciar PC a 0
+                proceso.getPcb().setMar(0);  // 📌 Reiniciar MAR a 0
+
+                colaListos.agregar(proceso);  // 📌 Agregar proceso a la cola de listos
+                System.out.println("📌 Proceso restaurado desde JSON y enviado a ejecución: " + proceso.getNombre());
+            }
+        }
+    } catch (IOException e) {
+        System.err.println("❌ No se encontró un archivo JSON, iniciando sin procesos previos.");
+    }
+}
 }

@@ -74,6 +74,9 @@ public class CPU extends Thread {
                 // Si el proceso termina, la CPU lo libera
                 if (procesoActual.getEstado() == PCB.Estado.FINISHED) {
                     System.out.println("CPU " + id + " terminó proceso: " + procesoActual.getNombre());
+                    if (planificador != null) {
+                        planificador.agregarProcesoTerminado(procesoActual);
+                            }
                     procesoActual = null;
                     semaforoCPU.release();
                     break;

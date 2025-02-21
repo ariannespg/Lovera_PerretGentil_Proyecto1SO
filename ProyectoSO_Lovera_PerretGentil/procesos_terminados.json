@@ -1,0 +1,20 @@
+[
+  {
+    "id": 1,
+    "nombre": "p1",
+    "instrucciones": 2,
+    "esCpuBound": true,
+    "ciclosParaExcepcion": 0,
+    "ciclosAtencionExcepcion": 0,
+    "ciclosRestantesBloqueado": 0,
+    "pcb": {
+      "processId": 1,
+      "nombreProceso": "p1",
+      "programCounter": 2,
+      "mar": 2,
+      "estado": "FINISHED"
+    },
+    "arrivalTime": 1740113095367,
+    "esSistema": false
+  }
+]

@@ -14,20 +14,22 @@ import javax.swing.SwingUtilities;
 
 public class main {
     public static void main(String[] args) {
+    String archivoJSON = "procesos_terminados.json";
+
     Configuracion configTemp = ConfigManager.cargarConfiguracion("config.json");
     if (configTemp == null) {
         configTemp = new Configuracion();
     }
-    final Configuracion configuracion = configTemp; // final o efectivamente final
+    final Configuracion configuracion = configTemp;
 
-    System.out.println("Ruta absoluta: " + new java.io.File("config.json").getAbsolutePath());
-
-    int numCPUs = configuracion.getNumProcesadores();
     Planificador planificador = new Planificador(
-        numCPUs,
+        configuracion.getNumProcesadores(),
         Planificador.Algoritmo.FCFS,
         configuracion.getDuracionCiclo()
     );
+
+    // 📌 Cargar procesos terminados desde JSON al iniciar el programa
+    planificador.cargarProcesosDesdeJSON(archivoJSON);
 
     RelojGlobal reloj = new RelojGlobal(planificador, null);
 
@@ -39,10 +41,12 @@ public class main {
 
     reloj.start();
 
-    // Agregamos un shutdown hook para guardar la config
+    // 📌 Guardar procesos en JSON al cerrar el programa
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        System.out.println("📌 Guardando procesos antes de salir...");
+        planificador.guardarProcesosEnJSON(archivoJSON);
         ConfigManager.guardarConfiguracion(configuracion, "config.json");
-        System.out.println("Configuración guardada.");
+        System.out.println("📌 Configuración y procesos guardados correctamente.");
     }));
 }
 }
